@@ -25,6 +25,9 @@ public class Sprite implements Disposable {
     private Direction currentDirection;
     private float stateTime;
     private int tileWidth;
+    private boolean flashing = false;
+    private float flashTimer = 0f;
+    private static final float FLASH_DURATION = 0.15f; // 150ms flash
 
     /**
      * Creates animations from a sprite sheet.
@@ -78,6 +81,12 @@ public class Sprite implements Disposable {
         }
     }
 
+    /** Makes the sprite flash red */
+    public void flashRed() {
+        flashing = true;
+        flashTimer = FLASH_DURATION;
+    }
+
     /** Switch direction */
     public Direction getCurrentDirection() {
         return currentDirection;
@@ -86,6 +95,13 @@ public class Sprite implements Disposable {
     /** Update state time (deltaTime from game loop) */
     public void update(float deltaTime) {
         stateTime += deltaTime;
+
+        if (flashing) {
+            flashTimer -= deltaTime;
+            if (flashTimer <= 0f) {
+                flashing = false;
+            }
+        }
     }
 
     /** Get current frame for rendering */
@@ -120,7 +136,22 @@ public class Sprite implements Disposable {
     public void draw(SpriteBatch batch, float x, float y) {
         TextureRegion frame = getCurrentFrame();
         if (frame != null) {
+            if (flashing) {
+                // toggle red/white based on remaining time
+                float blinkInterval = 0.1f;
+                boolean redPhase = ((int)(flashTimer / blinkInterval)) % 2 == 0;
+
+                if (redPhase) {
+                    batch.setColor(1f, 0f, 0f, 1f);
+                } else {
+                    batch.setColor(1f, 1f, 1f, 1f); // normal
+                }
+            } else {
+                batch.setColor(1f, 1f, 1f, 1f); // normal
+            }
+
             batch.draw(frame, x, y, tileWidth / 32f, 1f);
+            batch.setColor(1f, 1f, 1f, 1f); // reset
         }
     }
 

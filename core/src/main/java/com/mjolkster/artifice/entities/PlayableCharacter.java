@@ -1,232 +1,406 @@
 package com.mjolkster.artifice.entities;
 
-import box2dLight.PointLight;
-import box2dLight.RayHandler;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mjolkster.artifice.actions.AttackAction;
+import com.mjolkster.artifice.files.FileHandler;
 import com.mjolkster.artifice.generators.MapGenerator;
+import com.mjolkster.artifice.items.TimedEffect;
 import com.mjolkster.artifice.registration.registries.AttacksRegistry;
-import com.mjolkster.artifice.util.*;
+import com.mjolkster.artifice.screen.GameScreen;
+import com.mjolkster.artifice.util.Hitbox;
+import com.mjolkster.artifice.util.Inventory;
+import com.mjolkster.artifice.items.Item;
+import com.mjolkster.artifice.util.Sprite;
 import com.mjolkster.artifice.util.wrappers.Line;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 public class PlayableCharacter extends Entity {
 
+    // Constants
+    private final float attackDuration = 0.45f;
+    private final float dashDuration   = 0.20f;
+
+    // State
+    public final Archetype archetype;
     public Hitbox collisionBox;
-    private final float scaleX = 1f, scaleY = 1f; // world units
-
-    private PointLight light;
-
     public Inventory invTemp;
     public Inventory invPerm;
-    public AttackAction slash;
+    public int strength;
 
-    public final Archetype archetype;
-    public Sprite attackSprite;
-
-    // state
+    // Bools
     public boolean attacking = false;
+    public boolean canMove   = true;
     private boolean dashing  = false;
 
+    public AttackAction currentAttack;
+    public float distanceTraveledThisTurn = 0f;
+    public int roundsPassed;
+
     private float attackTimer = 0f;
-    private float attackDuration = 0.45f; // length of your attack anim
+    private float dashTimer   = 0f;
+    private float dashVelX    = 0f;
 
-    private float distanceTraveledThisTurn = 0f;
+    private List<TimedEffect> activeEffects;
+    // Constructors
+    public PlayableCharacter(Archetype a, Vector2 spawnpoint) {
+        super(
+            a.healthMax,
+            a.armorClass,
+            a.moveDistance,
+            a.actionPoints,
+            new Sprite("SpriteSheet.png", 8, 5, 0.1f)
+        );
 
-    // dash
-    private float dashTimer = 0f;
-    private float dashDuration = 0.20f;
-    private float dashVelX = 0f; // units/sec
-
-    public PlayableCharacter(Archetype a, Vector2 spawnpoint, RayHandler rayHandler) {
-        super(a.healthMax, a.armorClass, a.moveDistance, a.actionPoints, new Sprite("SpriteSheet.png", 8, 5, 0.1f));
         this.archetype = a;
-
-        this.x = spawnpoint.x * 1 / 32f;
-        this.y = spawnpoint.y * 1 / 32f;
+        this.x = spawnpoint.x / 32f;
+        this.y = spawnpoint.y / 32f;
 
         this.invTemp = new Inventory(3);
         this.invPerm = new Inventory(5);
 
-        this.collisionBox = new Hitbox(new Rectangle(x + 0.5f, y, 0.8f, 0.8f));
+        this.strength = 2;
 
-        // Current light engine, to be changed
-        this.light = new PointLight(rayHandler, 200, Color.GOLDENROD, 6, x, y);
-        attackSprite = new Sprite("FighterAttacks.png", 9,5, 0.05f);
+        this.collisionBox = new Hitbox(new Rectangle(x + 0.5f, y, 0.8f, 0.6f));
+
+        this.activeEffects = new ArrayList<>();
+
+        System.out.println(health);
+
+        FileHandler.CreateNewSave(this, GameScreen.seed, 0);
     }
 
+    public PlayableCharacter(
+        float health,
+        List<Item> tempInv,
+        List<Item> permInv,
+        Archetype a,
+        int roundsPassedINPT,
+        int slotNumber,
+        Vector2 spawnpoint
+    ) {
+        super(
+            a.healthMax,
+            a.armorClass,
+            a.moveDistance,
+            a.actionPoints,
+            new Sprite("SpriteSheet.png", 8, 5, 0.1f)
+        );
+
+        this.archetype = a;
+        this.health = health;
+        this.roundsPassed = roundsPassedINPT;
+
+        this.x = spawnpoint.x / 32f;
+        this.y = spawnpoint.y / 32f;
+
+        this.invTemp = new Inventory(3);
+        this.invTemp.setContents(tempInv);
+
+        this.invPerm = new Inventory(5);
+        this.invPerm.setContents(permInv);
+
+        this.strength = 2;
+
+        this.collisionBox = new Hitbox(new Rectangle(x + 0.5f, y, 0.8f, 0.6f));
+
+        FileHandler.CreateNewSave(this, GameScreen.seed, slotNumber);
+    }
+
+    // Inventory helpers
     public boolean addItemToPermanentInv(Item item) {
         return invPerm.addItem(item);
     }
 
     public boolean addItemToTemporaryInv(Item item) {
+        System.out.println("Item " + item.getItemName() + " added to Temporary Inventory");
         return invTemp.addItem(item);
     }
 
+    public boolean removeItemFromPermanentInv(Item item) {
+        return invPerm.getContents().remove(item);
+    }
+
+    public boolean removeItemFromTemporaryInv(Item item) {
+        return invTemp.getContents().remove(item);
+    }
+
+    // Bonus effects
+    public void applyBonus(Item.Bonus itemBonus, int bonusAmount, int effectTime) {
+        Item.Bonus bonus = itemBonus;
+
+        if (effectTime == 0) {
+            switch (bonus) {
+                case MAX_HEALTH : {
+                    this.maxHealth += bonusAmount;
+                }
+                break;
+                case MOVEMENT : {
+                    this.moveDistance += bonusAmount;
+                }
+                break;
+                case STRENGTH : {
+                    this.strength += bonusAmount;
+                }
+                break;
+                case MAX_ACTION_POINTS : {
+                    this.maxActionPoints += bonusAmount;
+                }
+                break;
+                case HEALTH: {
+                    changeHealth(bonusAmount);
+                }
+                break;
+            }
+        } else {
+            this.activeEffects.add(new TimedEffect(itemBonus, bonusAmount, effectTime));
+        }
+    }
+
+    public void removeBonus(Item.Bonus itemBonus, int bonusAmount) {
+        switch(itemBonus) {
+            case MAX_HEALTH : {
+                this.maxHealth -= bonusAmount;
+            } break;
+            case MOVEMENT : {
+                this.moveDistance -= bonusAmount;
+            } break;
+            case STRENGTH : {
+                this.strength -= bonusAmount;
+            } break;
+            case MAX_ACTION_POINTS : {
+                this.maxActionPoints -= bonusAmount;
+            } break;
+        }
+    }
+
+    public void updateEffects() {
+        if (activeEffects == null) return;
+        Iterator<TimedEffect> it = activeEffects.iterator();
+        while (it.hasNext()) {
+            TimedEffect e = it.next();
+            e.duration--;
+            if (e.duration <= 0) {
+                removeBonus(e.bonus, e.amount);
+                it.remove();
+            }
+        }
+    }
+
+    // Rounds
+    public void incrementRounds() {
+        roundsPassed++;
+    }
+
+    public boolean hasCompletedMove() {
+        if (distanceTraveledThisTurn >= moveDistance) {
+            distanceTraveledThisTurn = 0f;
+            actionPoints = archetype.actionPoints;
+
+            System.out.println("Player at: " + x + ", " + y);
+            return true;
+        }
+        return false;
+    }
+
+    public void resetForNewTurn() {
+        canMove = true;
+        distanceTraveledThisTurn = 0f;
+        actionPoints = archetype.actionPoints;
+    }
+
+    // Update Loop
     @Override
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
         if (attacking) {
-            attackTimer += delta;
-            attackSprite.update(delta);
-            attackSprite.setPosition(x, y);
-
-            if (dashing) {
-                dashTimer += delta;
-                float stepX = dashVelX * delta;
-
-                float oldX = x;
-                x += stepX;
-                collisionBox.translate(stepX, 0);
-
-                for (Line line : collisionBoxes) {
-                    if (collisionBox.overlaps(line)) {
-                        x = oldX;
-                        collisionBox.translate(-stepX, 0);
-
-                        dashing = false;
-                        dashVelX = 0f;
-                        break;
-                    }
-                }
-
-                if (dashTimer >= dashDuration) {
-                    dashing = false;
-                    dashVelX = 0f;
-                }
-            }
-
-            if (attackTimer >= attackDuration) {
-                attacking = false;
-
-            }
+            updateAttackState(delta, collisionBoxes);
         } else {
-            // only when not attacking
             handleZoom(delta, camera);
-            handleInput(delta, collisionBoxes, camera);
-            sprite.update(delta);
 
+            if (canMove) {
+                handleInput(delta, collisionBoxes, camera);
+            }
+            sprite.update(delta);
         }
+
+        updateEffects();
 
         collisionBox.setPosition(x + 0.1f, y);
-
-        // light follow
-        light.setPosition(x + 0.5f, y + 0.5f);
     }
 
+    private void updateAttackState(float delta, Set<Line> collisionBoxes) {
+        attackTimer += delta;
+
+        if (currentAttack != null) {
+            currentAttack.update(delta);
+        }
+
+        if (dashing) {
+            dashTimer += delta;
+            float stepX = dashVelX * delta;
+
+            float oldX = x;
+            x += stepX;
+            collisionBox.translate(stepX, 0);
+
+            for (Line line : collisionBoxes) {
+                if (collisionBox.overlaps(line)) {
+                    x = oldX;
+                    collisionBox.translate(-stepX, 0);
+
+                    dashing = false;
+                    dashVelX = 0f;
+                    break;
+                }
+            }
+
+            if (dashTimer >= dashDuration) {
+                dashing = false;
+                dashVelX = 0f;
+            }
+        }
+
+        if (attackTimer >= attackDuration) {
+            attacking = false;
+            currentAttack = null;
+        }
+    }
+
+    // Camera
     public void handleCamera(Viewport viewport, MapGenerator mapGenerator, OrthographicCamera camera) {
-        float halfViewportWidth = viewport.getWorldWidth() / 2f;
-        float halfViewportHeight = viewport.getWorldHeight() / 2f;
-        float mapWidth = mapGenerator.width;
-        float mapHeight = mapGenerator.height;
+        float halfW = viewport.getWorldWidth() / 2f;
+        float halfH = viewport.getWorldHeight() / 2f;
+
+        float mapW = mapGenerator.width;
+        float mapH = mapGenerator.height;
+
         float cameraX = x;
         float cameraY = y;
-        if (mapWidth < viewport.getWorldWidth()) {
-            cameraX = mapWidth / 2f;
+
+        // Horizontal clamp
+        if (mapW < viewport.getWorldWidth()) {
+            cameraX = mapW / 2f;
         } else {
-            cameraX = Math.max(halfViewportWidth, Math.min(cameraX, mapWidth - halfViewportWidth + 2));
+            cameraX = Math.max(halfW, Math.min(cameraX, mapW - halfW + 2));
         }
-        if (mapHeight < viewport.getWorldHeight()) {
-            cameraY = mapHeight / 2f;
+
+        // Vertical clamp
+        if (mapH < viewport.getWorldHeight()) {
+            cameraY = mapH / 2f;
         } else {
-            cameraY = Math.max(halfViewportHeight, Math.min(cameraY, mapHeight - halfViewportHeight + 2));
+            cameraY = Math.max(halfH, Math.min(cameraY, mapH - halfH + 2));
         }
+
         camera.position.set(cameraX, cameraY, 0);
-        x = Math.max(0, Math.min(x, mapWidth + collisionBox.getBounds().width / 2));
-        y = Math.max(0, Math.min(y, mapHeight + collisionBox.getBounds().height / 2));
+
+        // Clamp player position
+        x = Math.max(0, Math.min(x, mapW + collisionBox.getBounds().width / 2));
+        y = Math.max(0, Math.min(y, mapH + collisionBox.getBounds().height / 2));
     }
 
+    // Input
     public void handleInput(float delta, Set<Line> collisionBoxes, OrthographicCamera camera) {
         float moveSpeed = 2f;
-        float moveX = 0, moveY = 0;
-        float originalX = x, originalY = y;
+        float moveX = 0f, moveY = 0f;
 
-        // ---- movement keys (only when NOT attacking) ----
+        float originalX = x;
+        float originalY = y;
+
+        // Movement
         if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
             moveY = moveSpeed * delta;
             sprite.setDirection(Sprite.Direction.LEFT);
+
         } else if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
             moveY = -moveSpeed * delta;
             sprite.setDirection(Sprite.Direction.UP);
+
         } else if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             moveX = -moveSpeed * delta;
             sprite.setDirection(Sprite.Direction.DOWN);
+
         } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
             moveX = moveSpeed * delta;
             sprite.setDirection(Sprite.Direction.RIGHT);
+
         } else {
             sprite.setDirection(Sprite.Direction.IDLE);
         }
 
-        // ---- attacks ----
+        // Attacks
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            attacking = true;
-            attackTimer = 0f;
-            dashing = false; dashTimer = 0f; dashVelX = 0f;
-
-            if (Gdx.input.getX() / 64f < x) {
-                attackSprite.setDirection(Sprite.Direction.DOWN);
-            } else {
-                attackSprite.setDirection(Sprite.Direction.UP);
-            }
-
-            slash = AttacksRegistry.slash.get();
-
-            // Position the attack hitbox relative to player direction
-            float hbWidth = 1.5f;
-            float hbHeight = 1.0f;
-
-            Rectangle bounds = slash.getHitbox().getBounds();
-            if (sprite.getCurrentDirection() == Sprite.Direction.UP) {
-                bounds.set(x, y + 1f, hbWidth, hbHeight);
-                System.out.println("up");
-            } else if (sprite.getCurrentDirection() == Sprite.Direction.DOWN) {
-                bounds.set(x, y - 1f, hbWidth, hbHeight);
-                System.out.println("down");
-            } else if (sprite.getCurrentDirection() == Sprite.Direction.LEFT) {
-                bounds.set(x - 1f, y, hbHeight, hbWidth);
-                System.out.println("left");
-
-            } else if (sprite.getCurrentDirection() == Sprite.Direction.RIGHT) {
-                bounds.set(x + 1f, y, hbHeight, hbWidth);
-                System.out.println("right");
-
-            }
-
-            // now execute the attack with updated hitbox
-            slash.execute(this, null);
-
-            attackSprite.reset();
+            startAttack();
             return;
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ALT_LEFT)) {
-            attacking = true;
-            attackTimer = 0f;
-
-            dashing = true; dashTimer = 0f;
-            if (Gdx.input.getX() / 64f < x) {
-                attackSprite.setDirection(Sprite.Direction.RIGHT);
-                dashVelX = -8f;
-            } else {
-                attackSprite.setDirection(Sprite.Direction.LEFT);
-                dashVelX = 8f;
-            }
-
-            attackSprite.reset();
+            startDash();
             return;
         }
 
+        // Collision with NPCs and map
+        handleMovement(moveX, moveY, originalX, originalY, collisionBoxes);
+    }
+
+    private void startAttack() {
+        attacking = true;
+        attackTimer = 0f;
+
+        dashing   = false;
+        dashTimer = 0f;
+        dashVelX  = 0f;
+
+        if (Gdx.input.getX() / 32f < x) {
+            currentAttack = AttacksRegistry.slash_left.get();
+        } else {
+            currentAttack = AttacksRegistry.slash_right.get();
+        }
+
+        currentAttack.execute(this, null);
+    }
+
+    private void startDash() {
+        attacking   = true;
+        attackTimer = 0f;
+
+        dashing   = true;
+        dashTimer = 0f;
+
+        if (Gdx.input.getX() / 32f < x) {
+            dashVelX = -8f;
+            currentAttack = AttacksRegistry.dash_left.get();
+        } else {
+            dashVelX = 8f;
+            currentAttack = AttacksRegistry.dash_right.get();
+        }
+
+        currentAttack.execute(this, null);
+    }
+
+    private void handleMovement(float moveX, float moveY, float originalX, float originalY, Set<Line> collisionBoxes) {
+        // Horizontal
         if (moveX != 0) {
+            for (NonPlayableCharacter npc : GameScreen.NPCs) {
+                if (collisionBox.overlaps(npc.getHitbox())) {
+                    changeHealth(-Math.abs(moveX));
+                    x += 0.5f * moveX;
+                    distanceTraveledThisTurn += 2 * Math.abs(moveX);
+                    return;
+                }
+            }
+
             x += moveX;
             collisionBox.translate(moveX, 0);
+
             for (Line line : collisionBoxes) {
                 if (collisionBox.overlaps(line)) {
                     x = originalX;
@@ -236,9 +410,20 @@ public class PlayableCharacter extends Entity {
             }
         }
 
+        // Vertical
         if (moveY != 0) {
+            for (NonPlayableCharacter npc : GameScreen.NPCs) {
+                if (collisionBox.overlaps(npc.getHitbox())) {
+                    changeHealth(-Math.abs(moveY));
+                    y += 0.5f * moveY;
+                    distanceTraveledThisTurn += 2 * Math.abs(moveY);
+                    return;
+                }
+            }
+
             y += moveY;
             collisionBox.translate(0, moveY);
+
             for (Line line : collisionBoxes) {
                 if (collisionBox.overlaps(line)) {
                     y = originalY;
@@ -250,11 +435,12 @@ public class PlayableCharacter extends Entity {
 
         float dx = x - originalX;
         float dy = y - originalY;
-        distanceTraveledThisTurn += (float)Math.sqrt(dx * dx + dy * dy);
+        distanceTraveledThisTurn += (float) Math.sqrt(dx * dx + dy * dy);
     }
 
+    // Zoom
     public void handleZoom(float delta, OrthographicCamera camera) {
-        float zoomSpeed = 1f; // zoom units per second
+        float zoomSpeed = 1f;
 
         if (Gdx.input.isKeyPressed(Input.Keys.Q)) {
             camera.zoom -= zoomSpeed * delta; // zoom in
@@ -263,27 +449,16 @@ public class PlayableCharacter extends Entity {
             camera.zoom += zoomSpeed * delta; // zoom out
         }
 
-        // Optional: clamp the zoom level
         camera.zoom = Math.max(0.5f, Math.min(camera.zoom, 30f));
     }
 
+    // Draw
     @Override
     public void draw(SpriteBatch batch) {
         if (attacking) {
-            attackSprite.draw(batch, x - 0.5f, y);
+            currentAttack.draw(batch, x - 0.5f, y);
         } else {
             sprite.draw(batch, x, y);
         }
     }
-
-    public boolean hasCompletedMove() {
-        if (distanceTraveledThisTurn >= moveDistance) {
-            distanceTraveledThisTurn = 0f; // reset for next turn
-            System.out.println("Player at: " + x + ", " + y);
-            return true;
-        }
-        return false;
-    }
-
-
 }

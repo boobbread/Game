@@ -33,8 +33,9 @@ public class MapGenerator {
     TiledMapTileLayer layer;
 
     private Vector2 spawnPoint = new Vector2();
+    private Vector2 endPoint = new Vector2();
 
-    static Set<Line> collisionVertexes = new HashSet<>();
+    public static Set<Line> collisionVertexes = new HashSet<>();
     Integer[][] AStarGrid;
 
     // Generator constructor
@@ -104,10 +105,12 @@ public class MapGenerator {
         xMax = 0;
         yMax = 0;
 
+        int buffer = 2;
+
         for (int j = -1; j <= heightTiles + 1; j++) {
             for (int i = -1; i <= widthTiles + 1; i++) {
 
-                if (i == -1 || j == -1 || i == widthTiles + 1 || j == heightTiles + 1) {
+                if (i < buffer || j < buffer || i > widthTiles - 1 - buffer || j > heightTiles - 1 - buffer) {
                     gridVertices.put(new Point(i, j), 0);
                 } else {
                     int state = random.nextFloat() >= 0.5f ? 1 : 0;
@@ -118,7 +121,7 @@ public class MapGenerator {
                 if (j > yMax) yMax = j;
             }
         }
-        System.out.println(tileWidth + ", " + tileHeight);
+
         return new TiledMapTileLayer(widthTiles + 2, heightTiles + 2, tileWidth, tileHeight);
     }
 
@@ -487,28 +490,54 @@ public class MapGenerator {
     // Additional generation stuff
 
     private void determineSpawnPoint() {
-        Point leftmost = null;
-        for (Point point : gridVertices.keySet()) {
-            if (gridVertices.get(point) == 1) {
-                if (leftmost == null || point.x < leftmost.x) {
-                    leftmost = point;
-                }
+        Point leftmostWalkable = null;
+        Point rightmostWalkable = null;
+
+        for (Map.Entry<Point, Integer> entry : gridVertices.entrySet()) {
+            Point point = entry.getKey();
+
+            // Only consider walkable tiles (state 15 = fully walkable)
+            int bl = getStateAt(point.x, point.y); // implement a small helper
+            if (bl != 15) continue;
+
+            if (leftmostWalkable == null || point.x < leftmostWalkable.x) {
+                leftmostWalkable = point;
+            }
+            if (rightmostWalkable == null || point.x > rightmostWalkable.x) {
+                rightmostWalkable = point;
             }
         }
 
-        if (leftmost != null) {
+        // Fallback if none found
+        if (leftmostWalkable != null) {
             spawnPoint.set(
-                (leftmost.x + 0.5f) * tileWidth,
-                (leftmost.y + 0.5f) * tileHeight
+                (leftmostWalkable.x + 0.5f) * tileWidth,
+                (leftmostWalkable.y + 0.5f) * tileHeight
             );
-
         } else {
             spawnPoint.set(tileWidth * 0.5f, tileHeight * 0.5f);
         }
+
+        if (rightmostWalkable != null) {
+            endPoint.set(
+                (rightmostWalkable.x + 0.5f) * tileWidth,
+                (rightmostWalkable.y + 0.5f) * tileHeight
+            );
+        } else {
+            endPoint.set(
+                (width - 1 + 0.5f) * tileWidth,
+                (height / 2 + 0.5f) * tileHeight
+            );
+        }
     }
 
-
-
+    private int getStateAt(int x, int y) {
+        int bl = gridVertices.getOrDefault(new Point(x, y), 0);
+        int br = gridVertices.getOrDefault(new Point(x + 1, y), 0);
+        int tr = gridVertices.getOrDefault(new Point(x + 1, y + 1), 0);
+        int tl = gridVertices.getOrDefault(new Point(x, y + 1), 0);
+        return getState(bl, br, tr, tl); // reuse your existing method
+    }
 
     // getBlank methods for data retrieval
 
@@ -649,6 +678,10 @@ public class MapGenerator {
             result.add(new Line(points.get(i).x, points.get(i).y, points.get(i + 1).x, points.get(i + 1).y));
         }
         return result;
+    }
+
+    public Vector2 getEndPoint() {
+        return endPoint;
     }
 
 }

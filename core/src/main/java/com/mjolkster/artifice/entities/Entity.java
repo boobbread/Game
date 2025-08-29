@@ -9,7 +9,8 @@ import java.util.Set;
 
 public abstract class Entity {
 
-    public int health;
+    public float health;
+    public int maxHealth;
     public int armorClass;
     public float moveDistance;
     public int actionPoints;
@@ -21,6 +22,7 @@ public abstract class Entity {
 
     public Entity(int maxHealth, int armorClass, float movement, int maxActionPoints, Sprite sprite) {
         this.health = maxHealth;
+        this.maxHealth = maxHealth;
         this.armorClass = armorClass;
         this.maxActionPoints = maxActionPoints;
         this.sprite = sprite;
@@ -30,6 +32,16 @@ public abstract class Entity {
 
     public void changeHealth(int amount) {
         this.health += amount;
+        if (amount < 0) {
+            sprite.flashRed();
+        }
+    }
+
+    public void changeHealth(float amount) {
+        this.health += amount;
+        if (amount < 0) {
+            sprite.flashRed();
+        }
     }
 
     public void changeAC(int amount) {

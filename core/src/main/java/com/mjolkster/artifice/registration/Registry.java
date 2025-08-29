@@ -15,13 +15,13 @@ public class Registry<T> {
     }
 
     /** Lazy registration using Supplier, returns a RegistryObject<T> */
-    public RegistryObject<T> register(String key, Supplier<? extends T> supplier) {
+    public <U extends T> RegistryObject<U> register(String key, Supplier<U> supplier) {
         if (entries.containsKey(key)) {
             throw new IllegalArgumentException(
                 "Duplicate key '" + key + "' in registry '" + registryName + "'");
         }
-        RegistryObject<T> ro = new RegistryObject<>(supplier);
-        entries.put(key, ro.get()); // optionally, could store lazy object only
+        RegistryObject<U> ro = new RegistryObject<>(supplier);
+        entries.put(key, ro.get()); // still eagerly stores, but works
         return ro;
     }
 

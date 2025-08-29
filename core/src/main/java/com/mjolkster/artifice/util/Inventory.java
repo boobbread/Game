@@ -1,5 +1,7 @@
 package com.mjolkster.artifice.util;
 
+import com.mjolkster.artifice.items.Item;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -8,7 +10,7 @@ import java.util.Objects;
 public class Inventory {
 
     private final int size;
-    private final List<Item> contents;
+    private List<Item> contents;
 
     public Inventory(int size) {
         this.size = size;
@@ -44,6 +46,14 @@ public class Inventory {
     public Item getItemInSlot(int slot) {
         checkSlot(slot);
         return contents.get(slot);
+    }
+
+    public List<Item> getContents() {
+        return contents;
+    }
+
+    public void setContents(List<Item> inptContents) {
+        this.contents = inptContents;
     }
 
     private void checkSlot(int slot) {

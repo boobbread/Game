@@ -1,0 +1,17 @@
+GUISkin.png
+size:1024,256
+repeat:none
+GUIBarTintable
+bounds:564,236,226,16
+GUICenter
+bounds:0,138,564,114
+GUILeft
+bounds:268,0,268,138
+GUIRight
+bounds:0,0,268,138
+GUIslotDebug
+bounds:664,169,68,67
+card
+bounds:564,96,100,140
+transparent
+bounds:664,137,32,32

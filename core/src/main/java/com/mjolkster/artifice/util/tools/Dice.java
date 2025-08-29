@@ -23,9 +23,10 @@ public class Dice {
         int result = 0;
 
         for (int i = 0; i < numDice; i++) {
-            result = (int) (random.nextFloat() * die);
+            int roll = (int) (random.nextFloat() * die) + 1;
+            result += roll;
         }
-
+        if (result > numDice * die) result -= 1;
         result += modifier;
 
         return result;
