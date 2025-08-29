@@ -1,0 +1,97 @@
+{
+  com.badlogic.gdx.scenes.scene2d.ui.Skin$TintedDrawable: {
+    GUIBarRed: {
+      name: GUIBarTintable
+      color: {
+        r: 0.38431373
+        g: 0
+        b: 0
+        a: 1
+      }
+    }
+    GUIBarBlue: {
+      name: GUIBarTintable
+      color: {
+        r: 0
+        g: 0.09019608
+        b: 0.36078432
+        a: 1
+      }
+    }
+  }
+  com.badlogic.gdx.scenes.scene2d.ui.ImageButton$ImageButtonStyle: {
+    default: {
+      imageUp: GUIslotDebug
+      imageDown: GUIslotDebug
+      imageOver: GUIslotDebug
+    }
+    GUIslot: {
+      up: transparent
+      down: transparent
+      over: transparent
+    }
+    slot-debug: {
+      imageUp: GUIslotDebug
+      imageDown: GUIslotDebug
+      imageOver: GUIslotDebug
+    }
+  }
+  com.badlogic.gdx.scenes.scene2d.ui.ProgressBar$ProgressBarStyle: {
+    default-horizontal: {
+      background: GUIBarTintable
+    }
+    red-bar: {
+      knobBefore: GUIBarRed
+    }
+    blue-bar: {
+      knobBefore: GUIBarBlue
+    }
+  }
+  com.badlogic.gdx.graphics.g2d.BitmapFont: {
+    def: {
+      file: default.fnt
+      scaledSize: -1
+      markupEnabled: false
+      flip: false
+    }
+  }
+  com.badlogic.gdx.graphics.Color: {
+    White: {
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    }
+  }
+  com.badlogic.gdx.scenes.scene2d.ui.TextButton$TextButtonStyle: {
+    default: {
+      font: def
+      fontColor: White
+      up: card
+      down: card
+      over: card
+      checked: card
+    }
+  }
+  com.badlogic.gdx.scenes.scene2d.ui.Label$LabelStyle: {
+    default: {
+      font: def
+      fontColor: White
+    }
+  }
+  com.badlogic.gdx.scenes.scene2d.ui.Window$WindowStyle: {
+    default: {
+      background: card
+      titleFont: def
+      titleFontColor: White
+
+    }
+  }
+
+  com.badlogic.gdx.scenes.scene2d.ui.TextButton$TextButtonStyle: {
+    transparent: {
+      font: def
+      fontColor: White
+    }
+  }
+}
