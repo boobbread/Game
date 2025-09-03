@@ -36,7 +36,6 @@ public class FileHandler {
         final int MAX_SLOTS = 3;
 
         if (slotNumber < 0 || slotNumber >= MAX_SLOTS) {
-            System.out.println("Invalid slot number: " + slotNumber);
             return false;
         }
 
@@ -62,12 +61,12 @@ public class FileHandler {
 
             File saveFile = new File("saves/slot_" + slotNumber + ".json");
             if (saveFile.createNewFile()) {
-                System.out.println("File created: " + saveFile.getName());
+                Gdx.app.log("FileHandler", "Created new file " + saveFile.getName());
             } else {
-                System.out.println("Overwriting existing save in slot " + slotNumber);
+                Gdx.app.log("FileHandler","Overwriting existing save in slot " + slotNumber);
             }
         } catch (IOException e) {
-            System.out.println("An error occurred creating save file.");
+            Gdx.app.log("FileHandler: Error","An error occurred creating save file.");
             e.printStackTrace();
             return false;
         }

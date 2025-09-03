@@ -1,5 +1,6 @@
 package com.mjolkster.artifice.entities;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -7,12 +8,15 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.mjolkster.artifice.GameClass;
 import com.mjolkster.artifice.actions.AttackAction;
 import com.mjolkster.artifice.files.FileHandler;
 import com.mjolkster.artifice.generators.MapGenerator;
 import com.mjolkster.artifice.items.TimedEffect;
 import com.mjolkster.artifice.registration.registries.AttacksRegistry;
+import com.mjolkster.artifice.registration.registries.ItemRegistry;
 import com.mjolkster.artifice.screen.GameScreen;
+import com.mjolkster.artifice.screen.HubScreen;
 import com.mjolkster.artifice.util.Hitbox;
 import com.mjolkster.artifice.util.Inventory;
 import com.mjolkster.artifice.items.Item;
@@ -23,6 +27,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+
+import static com.mjolkster.artifice.screen.GameScreen.game;
+import static com.mjolkster.artifice.screen.GameScreen.playerSlotNumber;
 
 public class PlayableCharacter extends Entity {
 
@@ -51,14 +58,25 @@ public class PlayableCharacter extends Entity {
     private float dashVelX    = 0f;
 
     private List<TimedEffect> activeEffects;
+    private Context context = Context.DUNGEON;
+    private final int slotNumber;
+
+    private float damageTaken;
+
+    public enum Context {
+        DUNGEON,
+        HUB
+    }
+
     // Constructors
-    public PlayableCharacter(Archetype a, Vector2 spawnpoint) {
+    public PlayableCharacter(Archetype a, Vector2 spawnpoint, GameScreen gameScreen) {
         super(
             a.healthMax,
             a.armorClass,
             a.moveDistance,
             a.actionPoints,
-            new Sprite("SpriteSheet.png", 8, 5, 0.1f)
+            new Sprite("SpriteSheet.png", 8, 5, 0.1f),
+            gameScreen
         );
 
         this.archetype = a;
@@ -73,10 +91,9 @@ public class PlayableCharacter extends Entity {
         this.collisionBox = new Hitbox(new Rectangle(x + 0.5f, y, 0.8f, 0.6f));
 
         this.activeEffects = new ArrayList<>();
+        this.slotNumber = 0;
 
-        System.out.println(health);
-
-        FileHandler.CreateNewSave(this, GameScreen.seed, 0);
+        FileHandler.CreateNewSave(this, 0, 0);
     }
 
     public PlayableCharacter(
@@ -86,14 +103,16 @@ public class PlayableCharacter extends Entity {
         Archetype a,
         int roundsPassedINPT,
         int slotNumber,
-        Vector2 spawnpoint
+        Vector2 spawnpoint,
+        GameScreen gameScreen
     ) {
         super(
             a.healthMax,
             a.armorClass,
             a.moveDistance,
             a.actionPoints,
-            new Sprite("SpriteSheet.png", 8, 5, 0.1f)
+            new Sprite("SpriteSheet.png", 8, 5, 0.1f),
+            gameScreen
         );
 
         this.archetype = a;
@@ -110,19 +129,27 @@ public class PlayableCharacter extends Entity {
         this.invPerm.setContents(permInv);
 
         this.strength = 2;
+        this.slotNumber = slotNumber;
 
         this.collisionBox = new Hitbox(new Rectangle(x + 0.5f, y, 0.8f, 0.6f));
+    }
 
-        FileHandler.CreateNewSave(this, GameScreen.seed, slotNumber);
+    public void setContext(Context context) {
+        this.context = context;
+    }
+
+    public Context getContext() {
+        return context;
     }
 
     // Inventory helpers
     public boolean addItemToPermanentInv(Item item) {
+        item.onAcquire(this);
         return invPerm.addItem(item);
     }
 
     public boolean addItemToTemporaryInv(Item item) {
-        System.out.println("Item " + item.getItemName() + " added to Temporary Inventory");
+        item.onAcquire(this);
         return invTemp.addItem(item);
     }
 
@@ -138,7 +165,7 @@ public class PlayableCharacter extends Entity {
     public void applyBonus(Item.Bonus itemBonus, int bonusAmount, int effectTime) {
         Item.Bonus bonus = itemBonus;
 
-        if (effectTime == 0) {
+        if (effectTime == 0 && bonus != null) {
             switch (bonus) {
                 case MAX_HEALTH : {
                     this.maxHealth += bonusAmount;
@@ -160,26 +187,35 @@ public class PlayableCharacter extends Entity {
                     changeHealth(bonusAmount);
                 }
                 break;
+                default: {
+                    break;
+                }
             }
-        } else {
+        } else if (bonus != null) {
             this.activeEffects.add(new TimedEffect(itemBonus, bonusAmount, effectTime));
         }
     }
 
     public void removeBonus(Item.Bonus itemBonus, int bonusAmount) {
-        switch(itemBonus) {
-            case MAX_HEALTH : {
-                this.maxHealth -= bonusAmount;
-            } break;
-            case MOVEMENT : {
-                this.moveDistance -= bonusAmount;
-            } break;
-            case STRENGTH : {
-                this.strength -= bonusAmount;
-            } break;
-            case MAX_ACTION_POINTS : {
-                this.maxActionPoints -= bonusAmount;
-            } break;
+        if (itemBonus != null) {
+            switch (itemBonus) {
+                case MAX_HEALTH: {
+                    this.maxHealth -= bonusAmount;
+                }
+                break;
+                case MOVEMENT: {
+                    this.moveDistance -= bonusAmount;
+                }
+                break;
+                case STRENGTH: {
+                    this.strength -= bonusAmount;
+                }
+                break;
+                case MAX_ACTION_POINTS: {
+                    this.maxActionPoints -= bonusAmount;
+                }
+                break;
+            }
         }
     }
 
@@ -206,7 +242,6 @@ public class PlayableCharacter extends Entity {
             distanceTraveledThisTurn = 0f;
             actionPoints = archetype.actionPoints;
 
-            System.out.println("Player at: " + x + ", " + y);
             return true;
         }
         return false;
@@ -221,7 +256,20 @@ public class PlayableCharacter extends Entity {
     // Update Loop
     @Override
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
-        if (attacking) {
+        if (this.health <= 0) {
+
+            this.roundsPassed = 0;
+            for (int i = 0; i < invTemp.getContents().size(); i++) {
+                this.invTemp.removeItemFromSlot(i);
+            }
+
+            this.health = maxHealth;
+            FileHandler.saveTemp(this.slotNumber, this);
+            gameScreen.requestClose();
+            return;
+        }
+
+        if (attacking && context == Context.DUNGEON) {
             updateAttackState(delta, collisionBoxes);
         } else {
             handleZoom(delta, camera);
@@ -309,7 +357,7 @@ public class PlayableCharacter extends Entity {
 
     // Input
     public void handleInput(float delta, Set<Line> collisionBoxes, OrthographicCamera camera) {
-        float moveSpeed = 2f;
+        float moveSpeed = 2.5f;
         float moveX = 0f, moveY = 0f;
 
         float originalX = x;
@@ -337,14 +385,16 @@ public class PlayableCharacter extends Entity {
         }
 
         // Attacks
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            startAttack();
-            return;
-        }
+        if (context == Context.DUNGEON){
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+                startAttack();
+                return;
+            }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ALT_LEFT)) {
-            startDash();
-            return;
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ALT_LEFT)) {
+                startDash();
+                return;
+            }
         }
 
         // Collision with NPCs and map
@@ -365,7 +415,9 @@ public class PlayableCharacter extends Entity {
             currentAttack = AttacksRegistry.slash_right.get();
         }
 
-        currentAttack.execute(this, null);
+        if (currentAttack.execute(this, null, this.gameScreen)) {
+            actionPoints -= currentAttack.getActionPointCost();
+        }
     }
 
     private void startDash() {
@@ -383,52 +435,70 @@ public class PlayableCharacter extends Entity {
             currentAttack = AttacksRegistry.dash_right.get();
         }
 
-        currentAttack.execute(this, null);
+        if (currentAttack.execute(this, null, this.gameScreen)) {
+            actionPoints -= currentAttack.getActionPointCost();
+        }
     }
 
     private void handleMovement(float moveX, float moveY, float originalX, float originalY, Set<Line> collisionBoxes) {
         // Horizontal
         if (moveX != 0) {
-            for (NonPlayableCharacter npc : GameScreen.NPCs) {
-                if (collisionBox.overlaps(npc.getHitbox())) {
-                    changeHealth(-Math.abs(moveX));
-                    x += 0.5f * moveX;
-                    distanceTraveledThisTurn += 2 * Math.abs(moveX);
-                    return;
+            if (gameScreen != null && gameScreen.getNPCs() != null) {
+                for (NonPlayableCharacter npc : gameScreen.getNPCs()) {
+                    if (collisionBox.overlaps(npc.getHitbox())) {
+                        damageTaken += Math.abs(moveX);
+                        if (damageTaken >= 1) {
+                            changeHealth(-1);
+                            damageTaken = 0;
+                        }
+                        x += 0.5f * moveX;
+                        distanceTraveledThisTurn += 2 * Math.abs(moveX);
+                        return;
+                    }
                 }
             }
 
             x += moveX;
             collisionBox.translate(moveX, 0);
 
-            for (Line line : collisionBoxes) {
-                if (collisionBox.overlaps(line)) {
-                    x = originalX;
-                    collisionBox.translate(-moveX, 0);
-                    break;
+            if (collisionBoxes != null) {
+                for (Line line : collisionBoxes) {
+                    if (collisionBox.overlaps(line)) {
+                        x = originalX;
+                        collisionBox.translate(-moveX, 0);
+                        break;
+                    }
                 }
             }
         }
 
         // Vertical
         if (moveY != 0) {
-            for (NonPlayableCharacter npc : GameScreen.NPCs) {
-                if (collisionBox.overlaps(npc.getHitbox())) {
-                    changeHealth(-Math.abs(moveY));
-                    y += 0.5f * moveY;
-                    distanceTraveledThisTurn += 2 * Math.abs(moveY);
-                    return;
+            if (gameScreen != null && gameScreen.getNPCs() != null) {
+                for (NonPlayableCharacter npc : gameScreen.getNPCs()) {
+                    if (collisionBox.overlaps(npc.getHitbox())) {
+                        damageTaken += Math.abs(moveY);
+                        if (damageTaken >= 1) {
+                            changeHealth(-1);
+                            damageTaken = 0;
+                        }
+                        y += 0.5f * moveY;
+                        distanceTraveledThisTurn += 2 * Math.abs(moveY);
+                        return;
+                    }
                 }
             }
 
             y += moveY;
             collisionBox.translate(0, moveY);
 
-            for (Line line : collisionBoxes) {
-                if (collisionBox.overlaps(line)) {
-                    y = originalY;
-                    collisionBox.translate(0, -moveY);
-                    break;
+            if (collisionBoxes != null) {
+                for (Line line : collisionBoxes) {
+                    if (collisionBox.overlaps(line)) {
+                        y = originalY;
+                        collisionBox.translate(0, -moveY);
+                        break;
+                    }
                 }
             }
         }
@@ -455,10 +525,12 @@ public class PlayableCharacter extends Entity {
     // Draw
     @Override
     public void draw(SpriteBatch batch) {
-        if (attacking) {
-            currentAttack.draw(batch, x - 0.5f, y);
-        } else {
-            sprite.draw(batch, x, y);
-        }
+        if (context == Context.DUNGEON) {
+            if (attacking) {
+                currentAttack.draw(batch, x - 0.5f, y);
+            } else {
+                sprite.draw(batch, x, y);
+            }
+        } else sprite.draw(batch, x, y);
     }
 }

@@ -8,10 +8,13 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.mjolkster.artifice.GameClass;
+import com.mjolkster.artifice.files.FileHandler;
+import com.mjolkster.artifice.registration.registries.ItemRegistry;
 import com.mjolkster.artifice.screen.GameScreen;
 
 public class EndPoint {
 
+    private final GameScreen gameScreen;
     GameClass game;
 
     public enum State {
@@ -30,13 +33,14 @@ public class EndPoint {
     private float stateTime;
     private boolean playerCanInteract;
 
-    public EndPoint(Vector2 position) {
+    public EndPoint(Vector2 position, GameScreen gameScreen) {
         this.position = new Vector2(position.x / 32, position.y / 32);
         this.stateTime = 0;
         this.currentState = State.CLOSED;
         this.playerCanInteract = false;
 
-        game = GameScreen.game;
+        game = gameScreen.game;
+        this.gameScreen = gameScreen;
 
         // Create hitbox (adjust size as needed)
         this.hitbox = new Rectangle(this.position.x, this.position.y, 1f, 1f);
@@ -72,7 +76,7 @@ public class EndPoint {
         }
 
         if (currentState == State.OPEN) {
-            if (GameScreen.player.collisionBox.overlaps(hitbox)) {
+            if (gameScreen.player.collisionBox.overlaps(hitbox)) {
                 interact();
             }
         }
@@ -111,10 +115,13 @@ public class EndPoint {
 
     public boolean interact() {
         if (playerCanInteract) {
-            System.out.println("Endpoint activated!");
 
-            GameScreen currentScreen = (GameScreen) game.getScreen();
-            currentScreen.requestRestart();
+            if (gameScreen.player.invPerm.getContents().contains(ItemRegistry.nest_feather.get())) {
+                gameScreen.player.changeHealth(3);
+            }
+
+            FileHandler.CreateNewSave(gameScreen.player, gameScreen.seed, GameScreen.playerSlotNumber);
+            gameScreen.requestRestart();
 
             return true;
         }

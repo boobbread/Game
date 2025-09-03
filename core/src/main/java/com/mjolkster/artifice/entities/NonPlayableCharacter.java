@@ -1,5 +1,6 @@
 package com.mjolkster.artifice.entities;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
@@ -7,49 +8,55 @@ import com.badlogic.gdx.math.Vector2;
 import com.mjolkster.artifice.screen.GameScreen;
 import com.mjolkster.artifice.util.Sprite;
 import com.mjolkster.artifice.util.tools.AStarPathfinder;
+import com.mjolkster.artifice.util.wrappers.Gaussian;
 import com.mjolkster.artifice.util.wrappers.Line;
 
+import java.lang.reflect.Array;
 import java.util.*;
 
-public class NonPlayableCharacter extends Entity {
+public abstract class NonPlayableCharacter extends Entity {
 
-    private final PlayableCharacter target;
-    private final Rectangle hitbox;
-    private final AStarPathfinder pathfinder = new AStarPathfinder();
-    public boolean hasCompletedTurn = true;
-    public boolean hasDamagedPlayer = false;
-    public float blockTimer;
-    private Queue<Vector2> currentPath = new LinkedList<>();
-    private float distanceTravelled = 0f;
+    protected final PlayableCharacter target;
+    protected final Rectangle hitbox;
+    protected final AStarPathfinder pathfinder = new AStarPathfinder();
+    protected Queue<Vector2> currentPath = new LinkedList<>();
+    protected float distanceTravelled = 0f;
+    protected float blockTimer = 0f;
 
-    // Death / Life
-    private NPCState state = NPCState.ALIVE;
-    private float deathTimer = 0f;
+    protected boolean hasCompletedTurn = true;
+    protected boolean hasDamagedPlayer = false;
+    protected Vector2 averageDirection = new Vector2();
+
+    // Life / death states
+    protected NPCState state = NPCState.ALIVE;
+    protected float deathTimer = 0f;
+
     public enum NPCState {
         ALIVE,
         DYING,
         DEAD
     }
 
-    public boolean hasSpawnedChest = false;
+    protected boolean hasSpawnedChest = false;
 
-    public NonPlayableCharacter(Vector2 spawnPoint, PlayableCharacter player) {
-        super(10, 0, 10f, 0, new Sprite("SlimeTest.png", 8, 5, 0.2f));
+    /**
+     * Constructor for generic enemy.
+     * Subclasses define stats and sprite.
+     */
+    public NonPlayableCharacter(Vector2 spawnPoint, PlayableCharacter target, Sprite sprite, int health, float moveDistance, GameScreen gameScreen) {
+        super(health, 0, moveDistance, 0, sprite, gameScreen);
+        this.target = target;
+
         this.x = spawnPoint.x / 32f;
         this.y = spawnPoint.y / 32f;
-        this.target = player;
+        this.hitbox = new Rectangle(x, y + 1/32f, 1f, 16/32f);
 
-        this.hitbox = new Rectangle(x, y + 1/32f, 1f, 20/32f);
-
-        sprite.setDirection(Sprite.Direction.IDLE);
-
+        this.sprite.setDirection(Sprite.Direction.IDLE);
     }
 
-    public Rectangle getHitbox() {
-        return hitbox;
-    }
+    public Rectangle getHitbox() { return hitbox; }
 
-    @Override
+    /** Main update loop */
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
 
         if (state == NPCState.ALIVE && health <= 0) {
@@ -57,180 +64,204 @@ public class NonPlayableCharacter extends Entity {
             deathTimer = 0f;
         }
 
-        if (state == NPCState.ALIVE) {
-            followPath(delta);
-            sprite.update(delta);
-            sprite.getHitbox().setPosition(x, y);
-            if (!hasCompletedTurn){
-                damagePlayer(GameScreen.player);
-            }
+        switch (state) {
+            case ALIVE:
+                followPath(delta);
+                sprite.update(delta);
+                sprite.getHitbox().setPosition(x, y);
 
-        } else if (state == NPCState.DYING) {
-            deathTimer += delta;
-            sprite.update(delta);
-
-            if (deathTimer >= 1f) {
-                state = NPCState.DEAD;
-            }
-
-        } else if (state == NPCState.DEAD) {
-            if (!hasSpawnedChest) {
-                if (Math.random() > 0.0f) {
-                    ChestEntity chestEntity = new ChestEntity(10, 20, 0, 0);
-
-                    Rectangle playerBounds = target.collisionBox.getBounds();
-                    Rectangle chestBox = new Rectangle(x, y, 0.5f, 0.5f);
-
-                    if (!chestBox.overlaps(playerBounds)) {
-                        chestEntity.spawnChest(x, y);
-                    } else chestEntity.spawnChest(x + 1, y + 1);
-
-                    GameScreen.chests.add(chestEntity);
-
-                    Rectangle finalChestBox = chestEntity.getHitbox();
-
-                    float x1 = finalChestBox.x;
-                    float x2 = finalChestBox.x + finalChestBox.width;
-                    float y1 = finalChestBox.y;
-                    float y2 = finalChestBox.y + finalChestBox.height;
-
-                    List<Line> lines = new ArrayList<>();
-                    lines.add(new Line(x1, y1, x2, y1));
-                    lines.add(new Line(x1, y1, x1, y2));
-                    lines.add(new Line(x1, y2, x2, y2));
-                    lines.add(new Line(x2, y1, x2, y2));
-
-                    GameScreen.collisionBoxes.addAll(lines);
-
+                if (!hasCompletedTurn) {
+                    performAction();
                 }
-                hasSpawnedChest = true;
-            }
+
+                break;
+
+            case DYING:
+                deathTimer += delta;
+                sprite.update(delta);
+                if (deathTimer >= 1f) state = NPCState.DEAD;
+                break;
+
+            case DEAD:
+                handleDeath();
+                break;
         }
     }
 
-    public void damagePlayer(PlayableCharacter target) {
-        if (this.hitbox.overlaps(target.collisionBox.getBounds()) && !hasDamagedPlayer) {
-            System.out.println("Damaging player");
+    /** Abstract method: subclasses define custom actions (attack, skills, etc.) */
+    public abstract void performAction();
+
+    /** Default damage behavior for simple melee enemies */
+    protected void damagePlayer(PlayableCharacter target) {
+        if (hitbox.overlaps(target.collisionBox.getBounds()) && !hasDamagedPlayer) {
             target.changeHealth(-1);
             hasDamagedPlayer = true;
         }
     }
 
+    /** Pathfinding recalculation */
     public void recalculatePath() {
-        Vector2 start = new Vector2((int) x, (int) y);
-        Vector2 goal = new Vector2((int) Math.ceil(target.getX()), (int) Math.ceil(target.getY()));
-        currentPath = pathfinder.createAStarPathfinder(start, goal);
+        Vector2 start = new Vector2(x, y);
+        Vector2 goal = new Vector2((int)Math.ceil(target.getX()), (int)Math.ceil(target.getY()));
+        Queue<Vector2> proposedPath = pathfinder.createAStarPathfinder(start, goal, gameScreen);
+        if (!proposedPath.isEmpty()) {
+            currentPath = proposedPath;
+        }
+        currentPath.poll();
         distanceTravelled = 0f;
         hasCompletedTurn = false;
     }
 
-    private void followPath(float delta) {
+    /** Follow the current A* path */
+    public void followPath(float delta) {
+
         if (currentPath == null || currentPath.isEmpty() || distanceTravelled >= moveDistance) {
             hasCompletedTurn = true;
             return;
         }
 
-        float moveSpeed = 2f;
-
+        float moveSpeed = 1.5f;
         Vector2 nextPoint = currentPath.peek();
         Vector2 targetPos = new Vector2(nextPoint.x, nextPoint.y);
 
-        boolean blocked = isBlocked(targetPos, this, target);
+        boolean blocked = isBlocked(targetPos);
 
         if (blocked) {
-
-            blockTimer += delta;
-            if (blockTimer > 0.5f) { // half a second stuck
-                currentPath.poll(); // skip this tile
-                blockTimer = 0f;
-            }
-
-            Vector2 separation = new Vector2(0, 0);
-            for (NonPlayableCharacter other : GameScreen.NPCs) {
-                if (other == this) continue;
-
-                float dx = x - other.getX();
-                float dy = y - other.getY();
-                float dist2 = dx * dx + dy * dy;
-
-                if (dist2 < .5f * .5f && dist2 > 0.01f) {
-                    Vector2 push = new Vector2(dx, dy).scl(0.2f / dist2);
-                    separation.add(push);
-                }
-            }
-
-            if (!separation.isZero()) {
-                separation.nor();
-                x += separation.x * moveSpeed * delta * 0.5f;
-                y += separation.y * moveSpeed * delta * 0.5f;
-            }
-
+            handleBlocking(delta);
         } else {
-
-            Vector2 direction = targetPos.cpy().sub(x, y);
-
-            if (direction.len() < 0.05f) {
-                x = targetPos.x;
-                y = targetPos.y;
-                currentPath.poll();
-            } else {
-                direction.nor();
-                float dx = direction.x * moveSpeed * delta;
-                float dy = direction.y * moveSpeed * delta;
-
-                x += dx;
-                y += dy;
-                distanceTravelled += (float) Math.sqrt(dx * dx + dy * dy);
+            if (moveTowards(targetPos, delta, moveSpeed)) {
+                recalculatePath();
             }
         }
 
         hitbox.setPosition(x, y);
     }
 
-    private static boolean isBlocked(Vector2 targetPos, NonPlayableCharacter nonPlayableCharacter, PlayableCharacter target) {
-        boolean blocked = false;
-        for (NonPlayableCharacter other : GameScreen.NPCs) {
-            if (other == nonPlayableCharacter) continue;
+    /** Movement helper */
+    protected boolean moveTowards(Vector2 targetPos, float delta, float moveSpeed) {
+        Vector2 direction = targetPos.cpy().sub(x, y);
+        if (direction.len() < 0.05f) {
+            x = targetPos.x;
+            y = targetPos.y;
+            currentPath.poll();
+            return true;
+        } else {
+            direction.nor();
+            float dx = direction.x * moveSpeed * delta;
+            float dy = direction.y * moveSpeed * delta;
+            x += dx;
+            y += dy;
+            distanceTravelled += (float)Math.sqrt(dx*dx + dy*dy);
 
-            int ox = (int) other.getX();
-            int oy = (int) other.getY();
-            if (ox == (int) targetPos.x && oy == (int) targetPos.y) {
-                blocked = true;
-                break;
+            averageDirection.lerp(new Vector2(dx, dy).nor(), 0.2f);
+            updateSpriteDirection();
+        }
+        return false;
+    }
+
+    protected void updateSpriteDirection() {
+        if (averageDirection.isZero(0.05f)) {
+            sprite.setDirection(Sprite.Direction.IDLE);
+            return;
+        }
+
+        float angle = averageDirection.angleDeg();
+
+        if (angle >= 45 && angle < 135) {
+            sprite.setDirection(Sprite.Direction.UP);
+        } else if (angle >= 135 && angle < 225) {
+            sprite.setDirection(Sprite.Direction.DOWN);
+        } else if (angle >= 225 && angle < 315) {
+            sprite.setDirection(Sprite.Direction.RIGHT);
+        } else {
+            sprite.setDirection(Sprite.Direction.LEFT);
+        }
+    }
+
+
+    /** Blocking / collision with other NPCs */
+    protected void handleBlocking(float delta) {
+        blockTimer += delta;
+        if (blockTimer > 0.5f) {
+            currentPath.poll();
+            blockTimer = 0f;
+        }
+
+        Vector2 separation = new Vector2();
+        for (NonPlayableCharacter other : gameScreen.getNPCs()) {
+            if (other == this) continue;
+            float dx = x - other.getX();
+            float dy = y - other.getY();
+            float dist2 = dx*dx + dy*dy;
+            if (dist2 < 0.25f && dist2 > 0.01f) {
+                separation.add(new Vector2(dx, dy).scl(0.2f/dist2));
             }
         }
 
-        int ox = (int) target.getX();
-        int oy = (int) target.getY();
-
-        if (ox == (int) targetPos.x && oy == (int) targetPos.y) {
-            blocked = true;
+        if (!separation.isZero()) {
+            separation.nor();
+            x += separation.x * 0.5f * delta;
+            y += separation.y * 0.5f * delta;
         }
-        return blocked;
     }
 
+    /** Check if tile is blocked by other NPCs or the player */
+    protected boolean isBlocked(Vector2 targetPos) {
+        for (NonPlayableCharacter other : gameScreen.getNPCs()) {
+            if (other == this) continue;
+            if ((int)other.getX() == (int)targetPos.x && (int)other.getY() == (int)targetPos.y) return true;
+        }
+
+        int ox = (int)target.getX();
+        int oy = (int)target.getY();
+        return ox == (int)targetPos.x && oy == (int)targetPos.y;
+    }
+
+    /** Death logic, e.g., spawning loot */
+    protected void handleDeath() {
+        if (!hasSpawnedChest) {
+            if (Math.random() > 0.7f) {
+                spawnChest();
+            }
+            hasSpawnedChest = true;
+        }
+    }
+
+    protected void spawnChest() {
+        ChestEntity chest = new ChestEntity(10, 20, 0, 0, gameScreen);
+        Rectangle playerBounds = target.collisionBox.getBounds();
+        Rectangle chestBox = new Rectangle(x, y, 0.5f, 0.5f);
+
+        if (!chestBox.overlaps(playerBounds)) {
+            chest.spawnChest(x, y);
+        } else chest.spawnChest(x+1, y+1);
+
+        gameScreen.chests.add(chest);
+    }
+
+    /** Draw A* path (debug) */
     public void drawPath(ShapeRenderer shapeRenderer) {
         if (currentPath == null || currentPath.isEmpty()) return;
-
         float lastX = x + 0.5f;
         float lastY = y + 0.5f;
 
         for (Vector2 point : currentPath) {
-            float nextX = point.x;
-            float nextY = point.y;
-            shapeRenderer.line(lastX, lastY, nextX, nextY);
-            lastX = nextX;
-            lastY = nextY;
+            shapeRenderer.line(lastX, lastY, point.x, point.y);
+            lastX = point.x;
+            lastY = point.y;
         }
-
     }
 
-    public boolean hasCompletedMove() {
-        return hasCompletedTurn;
+    public boolean hasDamagedPlayer() {
+        return hasDamagedPlayer;
     }
 
-    public NPCState getState() {
-        return this.state;
+    public void damagedPlayer(boolean result) {
+        hasDamagedPlayer = result;
     }
+
+    public boolean hasSpawnedChest() { return hasSpawnedChest; }
+    public boolean hasCompletedMove() { return hasCompletedTurn; }
+    public NPCState getState() { return state; }
 
 }

@@ -17,7 +17,6 @@ public class ConsumableItem extends Item {
 
     @Override
     public void onAcquire(PlayableCharacter player) {
-        player.applyBonus(getBonus().first, getBonus().second, effectTime);
     }
 
     @Override

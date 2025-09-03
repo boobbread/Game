@@ -19,6 +19,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.mjolkster.artifice.screen.GameScreen.game;
+
 public class AttackAction implements Action{
 
     private final String id;
@@ -40,6 +42,7 @@ public class AttackAction implements Action{
     private Animation<TextureRegion> animation;
 
     private float stateTime;
+    private GameScreen gameScreen;
 
     /**
      * Performs an attack action from an effector
@@ -65,7 +68,6 @@ public class AttackAction implements Action{
         this.frameHitboxes = frameHitboxes;
         this.atlas = new TextureAtlas(Gdx.files.internal(atlasPath));
         this.region = atlas.findRegion(atlasRegion);
-        System.out.println("Found region: " + region);
 
         TextureRegion[] tmp = region.split(
             region.getRegionWidth() / 9,
@@ -73,9 +75,6 @@ public class AttackAction implements Action{
             )[0];
 
         this.animation = new Animation<>(0.05f, tmp);
-
-        System.out.println(frameHitboxes.size());
-        System.out.println(tmp.length);
 
         if (frameHitboxes.size() != tmp.length) {
             throw new IllegalArgumentException("Frame hitbox count must equal animation frame count!");
@@ -98,7 +97,7 @@ public class AttackAction implements Action{
 
     public void checkHits() {
 
-        for (NonPlayableCharacter npc : GameScreen.NPCs) {
+        for (NonPlayableCharacter npc : gameScreen.getNPCs()) {
 
             if (hitEntities.contains(npc)) return;
 
@@ -106,7 +105,6 @@ public class AttackAction implements Action{
                 hitEntities.add(npc);
                 if (effector.actionPoints >= actionPointCost) {
                     int damage = diceRoller.rollDice() + effector.strength;
-                    System.out.println("HIT! " + damage + ", " + damageRoll + " + " + effector.strength);
                     npc.changeHealth(-damage);
                 }
             }
@@ -156,20 +154,21 @@ public class AttackAction implements Action{
     }
 
     @Override
-    public void execute(PlayableCharacter effector, Entity target) {
+    public boolean execute(PlayableCharacter effector, Entity target, GameScreen gameScreen) {
 
-        System.out.println(effector.actionPoints);
-
+        this.gameScreen = gameScreen;
         this.effector = effector;
         stateTime = 0;
-
-        if (!hitEntities.isEmpty()) {
-            effector.spendActionPoint(actionPointCost);
-            this.hitEntities.clear();
-        }
 
         if (effector.actionPoints >= actionPointCost) {
             this.attacking = true;
         }
+
+        if (!hitEntities.isEmpty()) {
+            this.hitEntities.clear();
+            return true;
+        } else return false;
+
+
     }
 }

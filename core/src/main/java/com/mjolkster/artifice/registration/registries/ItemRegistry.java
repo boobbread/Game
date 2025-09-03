@@ -50,7 +50,7 @@ public class ItemRegistry {
                 "ruined_copper_bracer",
                 Item.Rarity.COMMON,
                 Item.Bonus.STRENGTH,
-                2,
+                1,
                 "A small strength boost."
             )
         );
@@ -61,7 +61,7 @@ public class ItemRegistry {
                 "tarnished_copper_bracer",
                 Item.Rarity.UNCOMMON,
                 Item.Bonus.STRENGTH,
-                4,
+                2,
                 "A medium strength boost."
             )
         );
@@ -72,8 +72,19 @@ public class ItemRegistry {
                 "pristine_copper_bracer",
                 Item.Rarity.RARE,
                 Item.Bonus.STRENGTH,
-                6,
+                4,
                 "A large strength boost."
+            )
+        );
+
+    public static final RegistryObject<PermanentItem> nest_feather =
+        RegistryManager.ITEMS.register("nest_feather", () ->
+            new PermanentItem(
+                "nest_feather",
+                Item.Rarity.COMMON,
+                null,
+                0,
+                "A feather you took from your nest upon reaching adolescence. It stands to be one of the few things that reminds you of your old home."
             )
         );
 

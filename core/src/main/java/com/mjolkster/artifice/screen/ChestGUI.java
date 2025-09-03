@@ -1,5 +1,6 @@
 package com.mjolkster.artifice.screen;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
@@ -14,13 +15,15 @@ import java.util.List;
 
 public class ChestGUI {
 
+    private final GameScreen gameScreen;
     private Stage stage;
     private Skin skin; // You need a Skin for UI
     private Table table;
 
-    public ChestGUI(Stage stage, Skin skin) {
+    public ChestGUI(Stage stage, Skin skin, GameScreen gameScreen) {
         this.stage = stage;
         this.skin = skin;
+        this.gameScreen = gameScreen;
         table = new Table();
         table.setFillParent(true);
         stage.addActor(table);
@@ -38,10 +41,8 @@ public class ChestGUI {
             button.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
-                    System.out.println("Item Picked: " + item.getItemName());
-                    if (!GameScreen.player.invTemp.addItem(item)) {
-                        showReplaceDialog(item, GameScreen.player.invTemp.getContents(), () -> {
-                            System.out.println("Player decided not to pick up " + item.getItemName());
+                    if (!gameScreen.player.addItemToTemporaryInv(item)) {
+                        showReplaceDialog(item, gameScreen.player.invTemp.getContents(), () -> {
                         });
                     }
                     onClose.run();
@@ -114,8 +115,7 @@ public class ChestGUI {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
                     // Replace item in that slot
-                    Item replaced = GameScreen.player.invTemp.replaceItemInSlot(newItem, slotIndex);
-                    System.out.println("Replaced " + replaced.getItemName() + " with " + newItem.getItemName());
+                    gameScreen.player.invTemp.replaceItemInSlot(newItem, slotIndex);
                     dialog.hide();
                 }
             });

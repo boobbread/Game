@@ -1,5 +1,6 @@
 package com.mjolkster.artifice.entities;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -29,26 +30,25 @@ public class ChestEntity extends Entity {
 
     public Boolean itemPicked;
 
-    public ChestEntity(int maxHealth, int armorClass, float movement, int maxActionPoints) {
-        super(maxHealth, armorClass, movement, maxActionPoints, new Sprite("ChestSprite.png", 4, 5, 0.2f));
+    public ChestEntity(int maxHealth, int armorClass, float movement, int maxActionPoints, GameScreen gameScreen) {
+        super(maxHealth, armorClass, movement, maxActionPoints, new Sprite("ChestSprite.png", 4, 5, 0.2f), gameScreen);
     }
 
     public void openChest(Registry<Item> itemRegistry, Stage stage, Skin skin) {
         if (state == ChestState.OPEN) return; // already open
 
         this.sprite.setDirection(Sprite.Direction.DOWN);
-        System.out.println("Chest Opened");
         state = ChestState.OPEN;
         generateLoot(itemRegistry); // fill the chest with random items
 
-        ChestGUI gui = new ChestGUI(stage, skin);
-        if (loot.isEmpty()) System.out.println("loot is empty");
+        ChestGUI gui = new ChestGUI(stage, skin, gameScreen);
+        if (loot.isEmpty()) Gdx.app.log("ChestEntity", "loot is empty");
         gui.showLoot(loot, this,  gui::hide);
     }
 
     public void closeChest() {
         state = ChestState.CLOSED;
-        GameScreen.chests.remove(this);
+        gameScreen.chests.remove(this);
         this.sprite.setDirection(Sprite.Direction.LEFT);
     }
 
@@ -70,12 +70,25 @@ public class ChestEntity extends Entity {
         List<Item> allItems = new ArrayList<>();
         for (Item item : itemRegistry.getAll().values()) {
             if (item instanceof TemporaryItem || item instanceof ConsumableItem) {
-                allItems.add(item);
+                Item.Rarity rarity = item.getRarity();
+
+                int i = 0;
+
+                switch (rarity) {
+                    case COMMON: i = 6; break;
+                    case UNCOMMON: i = 4; break;
+                    case RARE: i = 2; break;
+                    case ANOMALOUS: i = 1; break;
+                }
+
+                for (int x = 0; x <= i; x++) {
+                    allItems.add(item);
+                }
+
             }
         }
 
         if (allItems.isEmpty()) {
-            System.out.println("All items is empty");
             return; // nothing to give
         }
 
@@ -88,7 +101,7 @@ public class ChestEntity extends Entity {
     }
 
     public Rectangle getHitbox() {
-        if (hitbox == null) hitbox = new Rectangle(x, y, 1f, 1f); // 1x1 tile
+        if (hitbox == null) hitbox = new Rectangle(x + 3/32f, y + 2/32f, 26/32f, 21/32f); // 1x1 tile
         else hitbox.setPosition(x, y);
         return hitbox;
     }

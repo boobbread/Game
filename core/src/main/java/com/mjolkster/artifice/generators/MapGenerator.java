@@ -7,6 +7,7 @@ import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Array;
 import com.mjolkster.artifice.util.wrappers.Line;
 import com.mjolkster.artifice.util.wrappers.Pair;
 
@@ -16,9 +17,13 @@ import java.util.List;
 
 public class MapGenerator {
 
+    private final long seed;
+    PerlinNoiseGenerator noise = new PerlinNoiseGenerator();
 
     private final Texture tileset;
     private final StaticTiledMapTile[][] tiles;
+    private final Texture mossSet;
+    private final StaticTiledMapTile[] mossTiles;
     private final Random random;
 
     private final HashMap<Point, Integer> gridVertices = new HashMap<>();
@@ -31,11 +36,13 @@ public class MapGenerator {
     public int width;
     public int height;
     TiledMapTileLayer layer;
+    TiledMapTileLayer mossLayer;
+    double[][] moistureMap;
 
     private Vector2 spawnPoint = new Vector2();
     private Vector2 endPoint = new Vector2();
 
-    public static Set<Line> collisionVertexes = new HashSet<>();
+    public Set<Line> collisionVertexes = new HashSet<>();
     Integer[][] AStarGrid;
 
     // Generator constructor
@@ -51,6 +58,7 @@ public class MapGenerator {
     public MapGenerator(int tileWidth, int tileHeight, long seed) {
         this.tileWidth = tileWidth;
         this.tileHeight = tileHeight;
+        this.seed = seed;
 
         islands = new ArrayList<>();
 
@@ -62,14 +70,19 @@ public class MapGenerator {
                 tiles[row][col] = new StaticTiledMapTile(split[row][col]);
             }
         }
-        random = new Random(seed);
-    }
 
-    public static Pair<TiledMap, Vector2> runMapGen(int worldWidthTiles, int worldHeightTiles, int resolution,
-                                     long seed, int tileWidth, int tileHeight) {
-        MapGenerator gen = new MapGenerator(tileWidth, tileHeight, seed);
-        TiledMap map = gen.generate(worldWidthTiles, worldHeightTiles, resolution);
-        return new Pair<>(map, gen.getSpawnPoint());
+        mossSet = new Texture(Gdx.files.internal("mosstexture.png"));
+        TextureRegion[][] mossSplit = TextureRegion.split(mossSet, tileWidth, tileHeight);
+        mossTiles = new StaticTiledMapTile[mossSplit.length * mossSplit[0].length];
+        int index = 0;
+        for (int row = 0; row < mossSplit.length; row++) {
+            for (int col = 0; col < mossSplit[0].length; col++) {
+                mossTiles[index] = new StaticTiledMapTile(mossSplit[row][col]);
+                index ++;
+            }
+        }
+
+        random = new Random(seed);
     }
 
     /**
@@ -81,20 +94,24 @@ public class MapGenerator {
      */
 
     public TiledMap generate(int worldWidthTiles, int worldHeightTiles, int resolution) {
+        noise.init(worldWidthTiles * 32, worldHeightTiles * 32, 23, this.seed);
         TiledMap map = new TiledMap();
         layer = createGrid(worldWidthTiles, worldHeightTiles, resolution);
+        mossLayer = new TiledMapTileLayer(worldWidthTiles, worldHeightTiles, 32, 32);
         AStarGrid = new Integer[worldWidthTiles + 3][worldHeightTiles + 3];
         Arrays.stream(AStarGrid).forEach(row -> Arrays.fill(row, 1));
 
         this.width = worldWidthTiles;
         this.height = worldHeightTiles;
 
-        processIslands(40, 1);
+        processIslands(20, 1);
         connectIslands();
         determineSpawnPoint();
         draw(layer);
+        drawMossLayer();
 
         map.getLayers().add(layer);
+        map.getLayers().add(mossLayer);
         return map;
     }
 
@@ -122,6 +139,19 @@ public class MapGenerator {
             }
         }
 
+        moistureMap = new double[widthTiles][heightTiles];
+
+        for (int x = 0; x < widthTiles; x++) {
+            for (int y = 0; y < heightTiles; y++) {
+
+                float nx = x / 32.0f;
+                float ny = y / 32.0f;
+
+                moistureMap[x][y] = noise.sampleNoiseAt(nx, ny);
+            }
+        }
+
+
         return new TiledMapTileLayer(widthTiles + 2, heightTiles + 2, tileWidth, tileHeight);
     }
 
@@ -148,7 +178,6 @@ public class MapGenerator {
                 tl = tl == null ? 0 : tl;
                 state = getState(bl, br, tr, tl);
 
-
             }
 
             TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
@@ -156,7 +185,6 @@ public class MapGenerator {
             if (point.x >= 0 && point.y >= 0 &&
                 point.x < AStarGrid.length && point.y < AStarGrid[0].length) {
                 AStarGrid[point.x][point.y] = (state == 15) ? 0 : 1;
-
             }
 
             switch (state) {
@@ -284,6 +312,21 @@ public class MapGenerator {
 
             layer.setCell(point.x, point.y, cell);
         });
+    }
+
+    private void drawMossLayer() {
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (AStarGrid[x][y] == 0 && moistureMap[x][y] > 0.6) {
+
+                    double noiseValue = Math.random();
+
+                    TiledMapTileLayer.Cell moss = new TiledMapTileLayer.Cell();
+                    moss.setTile(mossTiles[(int) (noiseValue * 15)]);
+                    mossLayer.setCell(x, y, moss);
+                }
+            }
+        }
     }
 
     private int getState(int bl, int br, int tr, int tl) {
@@ -545,7 +588,7 @@ public class MapGenerator {
         return spawnPoint;
     }
 
-    public static Set<Line> getCollisionLines() {
+    public Set<Line> getCollisionLines() {
         Set<Line> collisionLines = new HashSet<>();
         for (List<Vector2> lines : orderOutline(collisionVertexes)) {
             collisionLines.addAll(reconstructLines(unifySegments(lines, 1e-1)));
@@ -684,4 +727,28 @@ public class MapGenerator {
         return endPoint;
     }
 
+    private int mossMask(boolean n, boolean e, boolean s, boolean w) {
+        // Order bits as NESW
+        int mask = 0;
+        if (n) mask |= 1;
+        if (e) mask |= 2;
+        if (s) mask |= 4;
+        if (w) mask |= 8;
+        return mask;
+    }
+
+    private int getMossIndex(int mask) {
+        switch (mask) {
+            case 0b1111: return 6; // full moss
+            case 0b0111: return 11; // no north -> south edge
+            case 0b1011: return 7; // no east -> west edge
+            case 0b1101: return 1; // no south -> north edge
+            case 0b1110: return 5; // no west -> east edge
+            case 0b0011: return 8; // corner: only N/E neighbors
+            case 0b0110: return 3; // corner: only E/S neighbors
+            case 0b1100: return 4; // corner: only S/W neighbors
+            case 0b1001: return 9; // corner: only W/N neighbors
+            default: return 0;     // fallback full moss
+        }
+    }
 }

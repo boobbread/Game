@@ -9,8 +9,8 @@ import java.util.*;
 
 public class AStarPathfinder {
 
-    public Queue<Vector2> createAStarPathfinder(Vector2 start, Vector2 goal) {
-        MapGenerator mapGen = GameScreen.mapGenerator;
+    public Queue<Vector2> createAStarPathfinder(Vector2 start, Vector2 goal, GameScreen gameScreen) {
+        MapGenerator mapGen = gameScreen.mapGenerator;
         if (mapGen == null) return new LinkedList<>();
 
         Integer[][] grid = mapGen.getAStarGridSnapshot();
