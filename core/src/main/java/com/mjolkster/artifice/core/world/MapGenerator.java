@@ -3,9 +3,18 @@ package com.mjolkster.artifice.core.world;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.maps.objects.PolygonMapObject;
+import com.badlogic.gdx.maps.objects.PolylineMapObject;
+import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
+import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
+import com.badlogic.gdx.math.Polygon;
+import com.badlogic.gdx.math.Polyline;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.mjolkster.artifice.util.geometry.Line;
 import com.mjolkster.artifice.util.data.Pair;
@@ -18,21 +27,22 @@ import java.util.Queue;
 public class MapGenerator {
 
     private final long seed;
-    private final Texture tileset;
-    private final StaticTiledMapTile[][] tiles;
     private final Texture mossSet;
     private final StaticTiledMapTile[] mossTiles;
     private final Random random;
-    private final HashMap<Point, Integer> gridVertices = new HashMap<>();
+    public final HashMap<Point, Integer> gridVertices = new HashMap<>();
+    private final List<Point> validPipeStarts = new ArrayList<>();
     private final int tileWidth;
     private final int tileHeight;
     public int width;
     public int height;
     public Set<Line> collisionVertexes = new HashSet<>();
+    public Set<Rectangle> subroomEntrance = new HashSet<>();
     PerlinNoiseGenerator noise = new PerlinNoiseGenerator();
     List<Set<Point>> islands;
     TiledMapTileLayer layer;
     TiledMapTileLayer mossLayer;
+    TiledMapTileLayer pipeLayer;
     double[][] moistureMap;
     Integer[][] AStarGrid;
     private int xMax, yMax;
@@ -56,14 +66,7 @@ public class MapGenerator {
 
         islands = new ArrayList<>();
 
-        tileset = new Texture(Gdx.files.internal("newtexture.png"));
-        TextureRegion[][] split = TextureRegion.split(tileset, tileWidth, tileHeight);
-        tiles = new StaticTiledMapTile[split.length][split[0].length];
-        for (int row = 0; row < split.length; row++) {
-            for (int col = 0; col < split[0].length; col++) {
-                tiles[row][col] = new StaticTiledMapTile(split[row][col]);
-            }
-        }
+        new TileLookup();
 
         mossSet = new Texture(Gdx.files.internal("mosstexture.png"));
         TextureRegion[][] mossSplit = TextureRegion.split(mossSet, tileWidth, tileHeight);
@@ -190,6 +193,7 @@ public class MapGenerator {
         TiledMap map = new TiledMap();
         layer = createGrid(worldWidthTiles, worldHeightTiles, resolution);
         mossLayer = new TiledMapTileLayer(worldWidthTiles, worldHeightTiles, 32, 32);
+        pipeLayer = new TiledMapTileLayer(worldWidthTiles, worldHeightTiles + 20, 32, 32);
         AStarGrid = new Integer[worldWidthTiles + 3][worldHeightTiles + 3];
         Arrays.stream(AStarGrid).forEach(row -> Arrays.fill(row, 1));
 
@@ -202,8 +206,13 @@ public class MapGenerator {
         draw(layer);
         drawMossLayer();
 
+        constructPipe(pipeLayer);
+        constructPipe(pipeLayer);
+
         map.getLayers().add(layer);
         map.getLayers().add(mossLayer);
+        map.getLayers().add(pipeLayer);
+
         return map;
     }
 
@@ -277,143 +286,12 @@ public class MapGenerator {
                 AStarGrid[point.x][point.y] = (state == 15) ? 0 : 1;
             }
 
-            switch (state) {
-                case 0: {
-                    cell.setTile(tiles[1][1]);
-                }
-                break;
-                case 1: {
-                    cell.setTile(tiles[3][2]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x, point.y + tileHeightScaled * 11 / 16f));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled * 0.5f, point.y));
-                }
-                break;
-                case 2: {
-                    cell.setTile(tiles[3][0]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled * 11 / 16f));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled * 0.5f, point.y));
-                }
-                break;
-                case 3: {
-                    cell.setTile(tiles[2][1]);
-                    collisionVertexes.add(new Line(
-                        point.x, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled * 11 / 16f));
-                }
-                break;
-                case 4: {
-                    cell.setTile(tiles[3][3]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled));
-                }
-                break;
-                case 5: {
-                    cell.setTile(tiles[1][3]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled * 0.5f, point.y));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x, point.y + tileHeightScaled * 11 / 16f));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled));
-                }
-                break;
-                case 6: {
-                    cell.setTile(tiles[1][2]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled));
-                }
-                break;
-                case 7: {
-                    cell.setTile(tiles[2][2]);
-                    collisionVertexes.add(new Line(
-                        point.x, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f));
-                }
-                break;
-                case 8: {
-                    cell.setTile(tiles[2][3]);
-                    collisionVertexes.add(new Line(
-                        point.x, point.y + tileHeightScaled,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled));
-                }
-                break;
-                case 9: {
-                    cell.setTile(tiles[1][0]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled));
-                }
-                break;
-                case 10: {
-                    cell.setTile(tiles[0][3]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled * 11 / 16f));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled,
-                        point.x, point.y + tileHeightScaled));
-                }
-                break;
-                case 11: {
-                    cell.setTile(tiles[2][0]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled * 11 / 16f,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled * 11 / 16f));
-                }
-                break;
-                case 12: {
-                    cell.setTile(tiles[0][1]);
-                    collisionVertexes.add(new Line(
-                        point.x, point.y + tileHeightScaled,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled));
-                }
-                break;
-                case 13: {
-                    cell.setTile(tiles[0][0]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled,
-                        point.x + tileWidthScaled, point.y + tileHeightScaled));
-                }
-                break;
-                case 14: {
-                    cell.setTile(tiles[0][2]);
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y,
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled));
-                    collisionVertexes.add(new Line(
-                        point.x + tileWidthScaled * 0.5f, point.y + tileHeightScaled,
-                        point.x, point.y + tileHeightScaled));
-                }
-                break;
-                case 15: {
-                    cell.setTile(tiles[3][1]);
-                }
-                break;
+            cell.setTile(TileLookup.getTile(state));
+            collisionVertexes.addAll(TileLookup.getCollisionLines(state, point, tileWidthScaled, tileHeightScaled));
+
+            int wallState = getStateAt(point.x, point.y);
+            if (wallState == 6) {
+                validPipeStarts.add(point);
             }
 
             layer.setCell(point.x, point.y, cell);
@@ -737,38 +615,243 @@ public class MapGenerator {
         return endPoint;
     }
 
-    private int mossMask(boolean n, boolean e, boolean s, boolean w) {
-        // Order bits as NESW
-        int mask = 0;
-        if (n) mask |= 1;
-        if (e) mask |= 2;
-        if (s) mask |= 4;
-        if (w) mask |= 8;
-        return mask;
+    public Set<Rectangle> getSubroomEntrance() {
+        return subroomEntrance;
     }
 
-    private int getMossIndex(int mask) {
-        switch (mask) {
-            case 0b1111:
-                return 6; // full moss
-            case 0b0111:
-                return 11; // no north -> south edge
-            case 0b1011:
-                return 7; // no east -> west edge
-            case 0b1101:
-                return 1; // no south -> north edge
-            case 0b1110:
-                return 5; // no west -> east edge
-            case 0b0011:
-                return 8; // corner: only N/E neighbors
-            case 0b0110:
-                return 3; // corner: only E/S neighbors
-            case 0b1100:
-                return 4; // corner: only S/W neighbors
-            case 0b1001:
-                return 9; // corner: only W/N neighbors
+    private Point findPipeStart() {
+
+        Collections.shuffle(validPipeStarts);
+        Point samplePoint = validPipeStarts.get(0);
+
+        return samplePoint;
+    }
+
+    private void constructPipe(TiledMapTileLayer pipeLayer) {
+
+        Point startPoint = findPipeStart();
+        Gdx.app.log("MapGenerator", "Pipe start:" + startPoint);
+
+        DirectionOfTravel currentDirection = DirectionOfTravel.EAST;
+
+        Deque<Pair<Point, DirectionOfTravel>> segments = stepForward(currentDirection, startPoint);
+        ArrayList<DirectionOfTravel> directionTriplet = new ArrayList<>();
+        TiledMapTileLayer.Cell cell = new TiledMapTileLayer.Cell();
+
+        cell.setTile(TileLookup.getPipeTile(6).first);
+        pipeLayer.setCell(startPoint.x, startPoint.y, cell);
+        directionTriplet.add(DirectionOfTravel.EAST);
+
+        segments.forEach(segment -> {
+
+            Gdx.app.log("Pipe", "Segment pos: " + segment.first);
+
+            TiledMapTileLayer.Cell newCell = new TiledMapTileLayer.Cell();
+
+            if (directionTriplet.size() == 3) {
+                directionTriplet.remove(0);
+            }
+
+            directionTriplet.add(segment.second);
+
+            // Store positions too so we can update previous cells
+            if (directionTriplet.size() == 3) {
+                DirectionOfTravel last = directionTriplet.get(0);
+                DirectionOfTravel current = directionTriplet.get(1);
+                DirectionOfTravel next = directionTriplet.get(2);
+
+                DirectionOfTravel adjusted = adjustDirection(last, current, next);
+
+                // Retroactively update the tile at the *previous* position
+                Point currentPos = ((LinkedList<Pair<Point, DirectionOfTravel>>) segments)
+                    .get(((LinkedList<Pair<Point, DirectionOfTravel>>) segments).indexOf(segment) - 1)
+                    .first;
+
+                Gdx.app.log("Pipe", "Segment pos: " + segment.first + ", " + "current pos: " + currentPos);
+
+                TiledMapTileLayer.Cell cornerCell = new TiledMapTileLayer.Cell();
+                cornerCell.setTile(TileLookup.getStraightPipeTile(adjusted));
+                pipeLayer.setCell(currentPos.x, currentPos.y, cornerCell);
+
+                // Still place the "next" segment with its raw direction for now
+                newCell.setTile(TileLookup.getStraightPipeTile(segment.second));
+                pipeLayer.setCell(segment.first.x, segment.first.y, newCell);
+
+            } else {
+                newCell.setTile(TileLookup.getStraightPipeTile(segment.second));
+                pipeLayer.setCell(segment.first.x, segment.first.y, newCell);
+            }
+
+            if (segment == segments.getLast()) {
+                newCell.setTile(TileLookup.getPipeTile(segment.second).second);
+                pipeLayer.setCell(segment.first.x, segment.first.y, newCell);
+
+                if (segment.second == DirectionOfTravel.NORTH) {
+                    collisionVertexes.removeAll(TileLookup.getCollisionLines(3, segment.first, tileWidth / 32f, tileHeight / 32f));
+                    subroomEntrance.add(new Rectangle(segment.first.x, segment.first.y + 11 / 16f, tileWidth / 32f, (tileHeight / 32f) * 5 / 16f));
+                }
+            }
+
+        });
+
+    }
+
+    private boolean isWall(int s) {
+        return s == 3 || s == 6 || s == 9 || s == 12;
+    }
+
+    private boolean isPath(int s) {
+        return s == 15;
+    }
+
+    private DirectionOfTravel[] orthogonalsFor(DirectionOfTravel dir) {
+        switch (dir) {
+            case NORTH:
+            case SOUTH:
+                return new DirectionOfTravel[]{DirectionOfTravel.EAST};
+            case EAST:
+            case WEST:
+                return new DirectionOfTravel[]{DirectionOfTravel.NORTH, DirectionOfTravel.SOUTH};
             default:
-                return 0;     // fallback full moss
+                return new DirectionOfTravel[]{};
         }
+    }
+
+    private Deque<Pair<Point, DirectionOfTravel>> stepForward(DirectionOfTravel currentDirection, Point startPoint) {
+        return explorePath(currentDirection, new Point(startPoint), 0, 0);
+    }
+
+    private Deque<Pair<Point, DirectionOfTravel>> explorePath(DirectionOfTravel dir, Point cur, int turnsMade, int stepCount) {
+        Deque<Pair<Point, DirectionOfTravel>> path = new LinkedList<>();
+
+        final int maxTurns = 5;
+        final int maxRayLength = 8;
+        final int maxSteps = 500;
+
+        // Safety stop
+        if (turnsMade > maxTurns || stepCount >= maxSteps) {
+            return path;
+        }
+
+        // Step forward
+        cur = new Point(cur); // copy
+        cur.x += dir.dx;
+        cur.y += dir.dy;
+        path.add(new Pair<>(cur, dir));
+
+        int state;
+        try {
+            state = getStateAt(cur.x, cur.y);
+        } catch (Exception e) {
+            return path; // out-of-bounds
+        }
+
+        if (isWall(state) || !isPath(state)) {
+            return path;
+        }
+
+        // Collect possible directions
+        List<DirectionOfTravel> nextDirs = new ArrayList<>();
+        nextDirs.add(dir); // straight ahead is always an option
+
+        for (DirectionOfTravel ortho : orthogonalsFor(dir)) {
+            for (int i = 1; i <= maxRayLength; i++) {
+                int rx = cur.x + ortho.dx * i;
+                int ry = cur.y + ortho.dy * i;
+                int rayState;
+                try {
+                    rayState = getStateAt(rx, ry);
+                } catch (Exception e) {
+                    break;
+                }
+                if (rayState != 15) {
+                    if (isWall(rayState)) {
+                        nextDirs.add(ortho); // valid turn
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Explore all candidate directions
+        Deque<Pair<Point, DirectionOfTravel>> bestPath = new LinkedList<>(path);
+        for (DirectionOfTravel nextDir : nextDirs) {
+            int newTurns = turnsMade + (nextDir == dir ? 0 : 1);
+            Deque<Pair<Point, DirectionOfTravel>> candidate =
+                explorePath(nextDir, cur, newTurns, stepCount + 1);
+
+            if (candidate.size() + path.size() > bestPath.size()) {
+                Deque<Pair<Point, DirectionOfTravel>> combined = new LinkedList<>(path);
+                combined.addAll(candidate);
+                bestPath = combined;
+            }
+        }
+
+        return bestPath;
+    }
+
+
+    private DirectionOfTravel adjustDirection(DirectionOfTravel last, DirectionOfTravel current, DirectionOfTravel next) {
+        // If last and next are different, it's a bend
+        if (current != next) {
+            if (current == DirectionOfTravel.NORTH && next == DirectionOfTravel.EAST)
+                return DirectionOfTravel.SOUTH_WEST;
+            if (current == DirectionOfTravel.EAST && next == DirectionOfTravel.NORTH)
+                return DirectionOfTravel.NORTH_EAST;
+
+            if (current == DirectionOfTravel.NORTH && next == DirectionOfTravel.WEST)
+                return DirectionOfTravel.SOUTH_EAST;
+            if (current == DirectionOfTravel.WEST && next == DirectionOfTravel.NORTH)
+                return DirectionOfTravel.NORTH_WEST;
+
+            if (current == DirectionOfTravel.SOUTH && next == DirectionOfTravel.EAST)
+                return DirectionOfTravel.NORTH_WEST;
+            if (current == DirectionOfTravel.EAST && next == DirectionOfTravel.SOUTH)
+                return DirectionOfTravel.SOUTH_EAST;
+
+            if (current == DirectionOfTravel.SOUTH && next == DirectionOfTravel.WEST)
+                return DirectionOfTravel.NORTH_EAST;
+            if (current == DirectionOfTravel.WEST && next == DirectionOfTravel.SOUTH)
+                return DirectionOfTravel.SOUTH_WEST;
+        }
+
+        // Otherwise keep the same
+        return current;
+    }
+
+    public static Set<Line> loadCollisionLinesFromMap(TiledMap map) {
+        Set<Line> lines = new HashSet<>();
+
+        MapLayer collisionLayer = map.getLayers().get("Collisions");
+        if (collisionLayer == null) {
+            Gdx.app.log("MapGenerator", "No 'Collisions' layer found in map!");
+            return lines;
+        }
+        float UNIT_SCALE = 1 / 32f;
+
+        for (MapObject object : collisionLayer.getObjects()) {
+            if (object instanceof PolylineMapObject) {
+                Polyline polyline = ((PolylineMapObject) object).getPolyline();
+                float[] vertices = polyline.getTransformedVertices();
+
+                Gdx.app.log("Collision", "Polyline with " + vertices.length / 2 + " points");
+
+                for (int i = 0; i < vertices.length - 2; i += 2) {
+                    Gdx.app.log("Collision", "Raw vertex: " + vertices[i] + ", " + vertices[i + 1]);
+                    float x1 = vertices[i] * UNIT_SCALE;
+                    float y1 = vertices[i + 1] * UNIT_SCALE;
+                    float x2 = vertices[i + 2] * UNIT_SCALE;
+                    float y2 = vertices[i + 3] * UNIT_SCALE;
+
+                    lines.add(new Line(new Vector2(x1, y1), new Vector2(x2, y2)));
+                }
+
+            } else {
+                Gdx.app.log("Collision", "Non-polyline object: " + object);
+                float x = object.getProperties().get("x", Float.class) / 32f;
+                float y = object.getProperties().get("y", Float.class) / 32f;
+                Gdx.app.log("MapGenerator", "Ignored object (Point?) at " + x + ", " + y);
+            }
+        } return lines;
     }
 }

@@ -12,6 +12,7 @@ import com.mjolkster.artifice.core.entities.enemy.BaseEnemy;
 import com.mjolkster.artifice.core.entities.enemy.SlugEnemy;
 import com.mjolkster.artifice.core.items.Inventory;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
+import com.mjolkster.artifice.graphics.screen.SublevelScreen;
 import com.mjolkster.artifice.io.FileHandler;
 import com.mjolkster.artifice.registry.registries.ItemRegistry;
 import com.mjolkster.artifice.util.combat.TurnManager;
@@ -25,12 +26,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static com.mjolkster.artifice.graphics.screen.GameScreen.game;
+
 public class EntityManager {
     private PlayableCharacter player;
     private final List<BaseEnemy> NPCs = new ArrayList<>();
     private final List<ChestEntity> chests = new ArrayList<>();
     private final TurnManager turnManager;
     private final GameScreen gameScreen;
+    private final EndPoint endPoint;
 
     public EntityManager(GameMap map, int slotNumber, GameScreen gameScreen) {
 
@@ -78,6 +82,9 @@ public class EntityManager {
         // init TurnManager
         turnManager = new TurnManager(player, NPCs);
 
+        // spawn endpoint
+        endPoint = new EndPoint(gameScreen.getGameMap().getEndPointPosition(), gameScreen);
+
         Gdx.app.log("EntityManager", "Initialisation complete");
 
     }
@@ -85,6 +92,19 @@ public class EntityManager {
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
         turnManager.update(delta);
         player.update(delta, camera, collisionBoxes);
+//        for (Rectangle entrance : gameScreen.getGameMap().getMapGenerator().getSubroomEntrance()) {
+//            if (player.collisionBox.getBounds().overlaps(entrance)) {
+//                float exitX = player.x;
+//                float exitY = player.y;
+//                game.setScreen(new SublevelScreen("subrooms/subroom_2.tmx", this, () -> {
+//                    game.setScreen(gameScreen);
+//                    player.x = exitX;
+//                    player.y = exitY;
+//                }));
+//                System.out.println("Subroom activated at " + entrance.getX() + ", " + entrance.getY());
+//            }
+//        }
+        endPoint.update(delta);
 
         List<BaseEnemy> deadNPCs = new ArrayList<>();
         NPCs.forEach(npc -> {
@@ -96,6 +116,8 @@ public class EntityManager {
         });
         NPCs.removeAll(deadNPCs);
 
+        if (NPCs.isEmpty()) endPoint.open();
+
         chests.forEach(chest -> {
             chest.update(delta, camera, collisionBoxes);
             chest.checkForOpen(camera);
@@ -104,6 +126,7 @@ public class EntityManager {
 
     public void render(SpriteBatch batch) {
         player.draw(batch);
+        endPoint.draw(batch);
         NPCs.forEach(npc -> npc.draw(batch));
         chests.forEach(chest -> chest.draw(batch));
     }

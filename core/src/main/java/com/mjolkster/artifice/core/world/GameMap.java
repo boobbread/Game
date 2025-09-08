@@ -40,11 +40,11 @@ public class GameMap {
 
         this.world = new World(new Vector2(0, -9.8f), true);
         this.rayHandler = new RayHandler(world);
-        this.rayHandler.setAmbientLight(0.1f);
+        this.rayHandler.setAmbientLight(0.0f);
         this.rayHandler.setBlur(true);
         this.rayHandler.setCulling(true);
 
-        this.playerLight = new PointLight(rayHandler, 300); // rays = quality
+        this.playerLight = new PointLight(rayHandler, 300);
         this.playerLight.setColor(Color.GOLDENROD);
         this.playerLight.setDistance(5f);
         this.playerLight.setSoft(true);
@@ -56,6 +56,7 @@ public class GameMap {
         Gdx.app.log("GameMap", "Initialisation complete");
     }
 
+    // --- Rendering ---
     public void render(OrthographicCamera camera) {
         renderer.setView(camera);
         renderer.render();
@@ -81,6 +82,7 @@ public class GameMap {
         world.dispose();
     }
 
+    // --- Collision creation ---
     public List<Body> createBodiesFromPolygons(World world, List<List<Vector2>> polygons) {
         List<Body> bodies = new ArrayList<>();
 
@@ -115,40 +117,14 @@ public class GameMap {
         return bodies;
     }
 
-    public TiledMap getMap() {
-        return map;
-    }
-
-    public OrthogonalTiledMapRenderer getRenderer() {
-        return renderer;
-    }
-
-    public RayHandler getRayHandler() {
-        return rayHandler;
-    }
-
-    public Set<Line> getCollisionBoxes() {
-        return collisionBoxes;
-    }
-
-    public World getWorld() {
-        return world;
-    }
-
-    public Vector2 getPlayerSpawnpoint() {
-        return spawnpoint;
-    }
-
-    public Vector2 getEndPointPosition() {
-        return endPointPosition;
-    }
-
-    public List<Vector2> getSpawnableAreas() {
-        return spawnableAreas;
-    }
-
-    public MapGenerator getMapGenerator() {
-        return mapGenerator;
-    }
+    // --- Getters ---
+    public TiledMap getMap() { return map; }
+    public OrthogonalTiledMapRenderer getRenderer() { return renderer; }
+    public RayHandler getRayHandler() { return rayHandler; }
+    public Set<Line> getCollisionBoxes() { return collisionBoxes; }
+    public World getWorld() { return world; }
+    public Vector2 getPlayerSpawnpoint() { return spawnpoint; }
+    public Vector2 getEndPointPosition() { return endPointPosition; }
+    public List<Vector2> getSpawnableAreas() { return spawnableAreas; }
+    public MapGenerator getMapGenerator() { return mapGenerator; }
 }
-

@@ -9,6 +9,8 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -41,6 +43,7 @@ public class GameScreen implements Screen {
     // Rendering
     private final SpriteBatch spriteBatch;
     private final ShapeRenderer shape;
+    private final Box2DDebugRenderer debugRenderer;
 
     // Map & Entities
     private final GameMap gameMap;
@@ -79,6 +82,7 @@ public class GameScreen implements Screen {
         shape = new ShapeRenderer();
         font = new BitmapFont();
         font.setColor(Color.WHITE);
+        debugRenderer = new Box2DDebugRenderer(true, false, false, false, false, false);
 
         // UI
         skin = new Skin(Gdx.files.internal("GUI/GUISkin.json"));
@@ -144,6 +148,9 @@ public class GameScreen implements Screen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             paused = !paused;
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            requestRestart();
+        }
     }
 
     private void draw() {
@@ -173,6 +180,7 @@ public class GameScreen implements Screen {
 
         // Draw hitboxes
         if (showHitBox) {
+            debugRenderer.render(gameMap.getWorld(), camera.combined);
             shape.setProjectionMatrix(camera.combined);
             shape.begin(ShapeRenderer.ShapeType.Line);
             entityManager.renderHitboxes(shape);
