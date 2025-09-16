@@ -31,11 +31,10 @@ public class HitboxExtractor {
             boolean[][] opaque = new boolean[tdx][tdy];
             boolean[][] visited = new boolean[tdx][tdy];
 
-            // Fill opaque map
             for (int y = 0; y < tdy; y++) {
                 for (int x = 0; x < tdx; x++) {
                     int px = tx + x;
-                    int py = ty + y; // LibGDX Pixmap origin is bottom-left
+                    int py = ty + y;
                     int pixel = pixmap.getPixel(px, py);
                     int alpha = (pixel >>> 24) & 0xFF;
                     opaque[x][y] = alpha >= alphaThreshold;

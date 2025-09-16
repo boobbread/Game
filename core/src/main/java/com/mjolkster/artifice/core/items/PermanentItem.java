@@ -4,8 +4,8 @@ import com.mjolkster.artifice.core.entities.PlayableCharacter;
 
 public class PermanentItem extends Item {
 
-    public PermanentItem(String name, Rarity rarity, Bonus bonus, int bonusAmount, String itemDescription) {
-        super(name, rarity, bonus, bonusAmount, itemDescription);
+    public PermanentItem(String name, Rarity rarity, Bonus bonus, int bonusAmount) {
+        super(name, rarity, bonus, bonusAmount, false);
     }
 
     @Override

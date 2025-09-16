@@ -5,6 +5,7 @@ import box2dLight.RayHandler;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -21,17 +22,22 @@ import com.mjolkster.artifice.core.entities.Archetype;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.graphics.viewports.AspectRatioViewport;
 import com.mjolkster.artifice.graphics.viewports.ExpandingViewport;
+import com.mjolkster.artifice.io.input.ControllerInputHandler;
+import com.mjolkster.artifice.io.input.HybridInputHandler;
+import com.mjolkster.artifice.io.input.InputHandler;
 
 public class HubScreen implements Screen {
 
     private static final float HUB_WIDTH = 50f;
     private static final float HUB_HEIGHT = 40f;
+
     // Core
     private final GameClass game;
     private boolean restartRequested;
     private final OrthographicCamera camera;
     private final Viewport viewport;
     private final SpriteBatch spriteBatch;
+    private final InputHandler inputHandler;
 
     // Map
     private final Texture hubBackground;
@@ -69,13 +75,15 @@ public class HubScreen implements Screen {
         playerLight.setColor(Color.GOLDENROD);
         playerLight.setDistance(4f);
 
-        // Player rat spawns at center (adjust to taste)
-        Vector2 spawnPoint = new Vector2(800, 750);
-        player = new PlayableCharacter(Archetype.FIGHTER, spawnPoint, null);
-        player.setContext(PlayableCharacter.Context.HUB);
-
         // Stage for UI (upgrade/crafting menus later)
         stage = new Stage(new ExpandingViewport(90f, true, new OrthographicCamera()), spriteBatch);
+        inputHandler = new HybridInputHandler(stage);
+        // Player rat spawns at center (adjust to taste)
+        Vector2 spawnPoint = new Vector2(800, 750);
+        player = new PlayableCharacter(Archetype.FIGHTER, spawnPoint, null, inputHandler);
+        player.setContext(PlayableCharacter.Context.HUB);
+
+
     }
 
     // Replace with real save/slot logic later
@@ -160,6 +168,12 @@ public class HubScreen implements Screen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.G)) {
             requestRestart();
         }
+        if (inputHandler.isController() && inputHandler instanceof HybridInputHandler) {
+            ControllerInputHandler controller = ((HybridInputHandler) inputHandler).getControllerHandler();
+            if (controller.isaPressed()) {
+                requestRestart();
+            }
+        }
     }
 
     @Override
@@ -174,6 +188,7 @@ public class HubScreen implements Screen {
         rayHandler.dispose();
         world.dispose();
         stage.dispose();
+        inputHandler.dispose();
     }
 
     @Override

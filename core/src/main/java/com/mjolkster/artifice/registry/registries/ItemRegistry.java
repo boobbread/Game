@@ -16,7 +16,7 @@ public class ItemRegistry {
                 Item.Bonus.HEALTH,
                 5,
                 0,
-                "A small health boost."
+                false
             )
         );
 
@@ -28,7 +28,7 @@ public class ItemRegistry {
                 Item.Bonus.HEALTH,
                 10,
                 0,
-                "A medium health boost."
+                false
             )
         );
 
@@ -40,7 +40,7 @@ public class ItemRegistry {
                 Item.Bonus.HEALTH,
                 15,
                 0,
-                "A large health boost."
+                false
             )
         );
 
@@ -51,7 +51,7 @@ public class ItemRegistry {
                 Item.Rarity.COMMON,
                 Item.Bonus.STRENGTH,
                 1,
-                "A small strength boost."
+                false
             )
         );
 
@@ -62,7 +62,7 @@ public class ItemRegistry {
                 Item.Rarity.UNCOMMON,
                 Item.Bonus.STRENGTH,
                 2,
-                "A medium strength boost."
+                false
             )
         );
 
@@ -73,7 +73,7 @@ public class ItemRegistry {
                 Item.Rarity.RARE,
                 Item.Bonus.STRENGTH,
                 4,
-                "A large strength boost."
+                false
             )
         );
 
@@ -83,8 +83,77 @@ public class ItemRegistry {
                 "nest_feather",
                 Item.Rarity.COMMON,
                 null,
+                0
+            )
+        );
+
+    public static final RegistryObject<ConsumableItem> charred_flesh =
+        RegistryManager.ITEMS.register("charred_flesh", () ->
+            new ConsumableItem(
+                "charred_flesh",
+                Item.Rarity.RARE,
+                Item.Bonus.MAX_HEALTH,
+                3,
                 0,
-                "A feather you took from your nest upon reaching adolescence. It stands to be one of the few things that reminds you of your old home."
+                false
+            )
+        );
+
+    public static final RegistryObject<ConsumableItem> sewer_fungus =
+        RegistryManager.ITEMS.register("sewer_fungus", () ->
+            new ConsumableItem(
+                "sewer_fungus",
+                Item.Rarity.UNCOMMON,
+                Item.Bonus.MAX_HEALTH,
+                1,
+                0,
+                true
+            )
+        );
+
+    public static final RegistryObject<ConsumableItem> spoiled_meat =
+        RegistryManager.ITEMS.register("spoiled_meat", () ->
+            new ConsumableItem(
+                "spoiled_meat",
+                Item.Rarity.UNCOMMON,
+                Item.Bonus.MAX_HEALTH,
+                2,
+                0,
+                true
+            )
+        );
+
+    public static final RegistryObject<ConsumableItem> bitter_root =
+        RegistryManager.ITEMS.register("bitter_root", () ->
+            new ConsumableItem(
+                "bitter_root",
+                Item.Rarity.COMMON,
+                Item.Bonus.MAX_ACTION_POINTS,
+                1,
+                0,
+                true
+            )
+        );
+
+    public static final RegistryObject<TemporaryItem> rag_wraps =
+        RegistryManager.ITEMS.register("rag_wraps", () ->
+            new TemporaryItem(
+                "rag_wraps",
+                Item.Rarity.UNCOMMON,
+                Item.Bonus.MOVEMENT,
+                2,
+                false
+            )
+        );
+
+    public static final RegistryObject<TemporaryItem> glass_shard =
+        RegistryManager.ITEMS.register("glass_shard", () ->
+            new TemporaryItem(
+                "glass_shard",
+                Item.Rarity.UNCOMMON,
+                Item.Bonus.MAX_ACTION_POINTS,
+                1,
+                true
             )
         );
 

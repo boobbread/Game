@@ -74,7 +74,6 @@ public abstract class Entity {
 
     public void draw(SpriteBatch batch) {
         sprite.draw(batch, x, y);
-
     }
 
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {

@@ -1,4 +1,4 @@
-package com.mjolkster.artifice.core.world;
+package com.mjolkster.artifice.core.world.generation;
 
 public enum DirectionOfTravel {
     NORTH(0, 1),

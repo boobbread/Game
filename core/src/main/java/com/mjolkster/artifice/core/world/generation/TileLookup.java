@@ -1,9 +1,12 @@
-package com.mjolkster.artifice.core.world;
+package com.mjolkster.artifice.core.world.generation;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.tiled.TiledMapTile;
+import com.badlogic.gdx.maps.tiled.tiles.AnimatedTiledMapTile;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
+import com.badlogic.gdx.utils.Array;
 import com.mjolkster.artifice.util.data.Pair;
 import com.mjolkster.artifice.util.geometry.Line;
 
@@ -17,27 +20,52 @@ public class TileLookup {
 
     private TextureAtlas atlas = new TextureAtlas(Gdx.files.internal("tiles.atlas"));
     private static Map<Integer, TiledMapTile> tiles = new HashMap<>();
+    private static Map<Integer, TiledMapTile> animatedTiles = new HashMap<>();
     private static Map<Integer, Pair<TiledMapTile, TiledMapTile>> pipeTiles = new HashMap<>();
     private static Map<DirectionOfTravel, TiledMapTile> straightPipeTiles = new HashMap<>();
 
     public TileLookup() {
 
-        tiles.put(0, new StaticTiledMapTile(atlas.findRegion("void")));
-        tiles.put(1, new StaticTiledMapTile(atlas.findRegion("wall_southwest_outer")));
-        tiles.put(2, new StaticTiledMapTile(atlas.findRegion("wall_southeast_outer")));
-        tiles.put(3, new StaticTiledMapTile(atlas.findRegion("wall_north")));
-        tiles.put(4, new StaticTiledMapTile(atlas.findRegion("wall_northeast_outer")));
-        tiles.put(5, new StaticTiledMapTile(atlas.findRegion("wall_converge_2")));
-        tiles.put(6, new StaticTiledMapTile(atlas.findRegion("wall_west")));
-        tiles.put(7, new StaticTiledMapTile(atlas.findRegion("wall_northwest_inner")));
-        tiles.put(8, new StaticTiledMapTile(atlas.findRegion("wall_northwest_outer")));
-        tiles.put(9, new StaticTiledMapTile(atlas.findRegion("wall_east")));
-        tiles.put(10, new StaticTiledMapTile(atlas.findRegion("wall_converge_1")));
-        tiles.put(11, new StaticTiledMapTile(atlas.findRegion("wall_northeast_inner")));
-        tiles.put(12, new StaticTiledMapTile(atlas.findRegion("wall_south")));
-        tiles.put(13, new StaticTiledMapTile(atlas.findRegion("wall_southeast_inner")));
-        tiles.put(14, new StaticTiledMapTile(atlas.findRegion("wall_southwest_inner")));
-        tiles.put(15, new StaticTiledMapTile(atlas.findRegion("floor")));
+        {
+            tiles.put(0, new StaticTiledMapTile(atlas.findRegion("void")));
+            tiles.put(1, new StaticTiledMapTile(atlas.findRegion("wall_southwest_outer")));
+            tiles.put(2, new StaticTiledMapTile(atlas.findRegion("wall_southeast_outer")));
+            tiles.put(3, new StaticTiledMapTile(atlas.findRegion("wall_north")));
+            tiles.put(4, new StaticTiledMapTile(atlas.findRegion("wall_northeast_outer")));
+            tiles.put(5, new StaticTiledMapTile(atlas.findRegion("wall_converge_2")));
+            tiles.put(6, new StaticTiledMapTile(atlas.findRegion("wall_west")));
+            tiles.put(7, new StaticTiledMapTile(atlas.findRegion("wall_northwest_inner")));
+            tiles.put(8, new StaticTiledMapTile(atlas.findRegion("wall_northwest_outer")));
+            tiles.put(9, new StaticTiledMapTile(atlas.findRegion("wall_east")));
+            tiles.put(10, new StaticTiledMapTile(atlas.findRegion("wall_converge_1")));
+            tiles.put(11, new StaticTiledMapTile(atlas.findRegion("wall_northeast_inner")));
+            tiles.put(12, new StaticTiledMapTile(atlas.findRegion("wall_south")));
+            tiles.put(13, new StaticTiledMapTile(atlas.findRegion("wall_southeast_inner")));
+            tiles.put(14, new StaticTiledMapTile(atlas.findRegion("wall_southwest_inner")));
+            tiles.put(15, new StaticTiledMapTile(atlas.findRegion("floor")));
+        }
+
+
+        TextureRegion[][] wormTiles = atlas.findRegion("worms").split(32,32);
+        TextureRegion[][] eastDripTiles = atlas.findRegion("east_pipe_drip").split(32,32);
+        TextureRegion[][] westDripTiles = atlas.findRegion("west_pipe_drip").split(32,32);
+
+        animatedTiles.put(0, new StaticTiledMapTile(atlas.findRegion("void")));
+        animatedTiles.put(1, new StaticTiledMapTile(atlas.findRegion("wall_southwest_outer")));
+        animatedTiles.put(2, new StaticTiledMapTile(atlas.findRegion("wall_southeast_outer")));
+        animatedTiles.put(3, new StaticTiledMapTile(atlas.findRegion("wall_north")));
+        animatedTiles.put(4, new StaticTiledMapTile(atlas.findRegion("wall_northeast_outer")));
+        animatedTiles.put(5, new StaticTiledMapTile(atlas.findRegion("wall_converge_2")));
+        animatedTiles.put(6, new AnimatedTiledMapTile(0.1f, toStaticTiles(westDripTiles)));
+        animatedTiles.put(7, new StaticTiledMapTile(atlas.findRegion("wall_northwest_inner")));
+        animatedTiles.put(8, new StaticTiledMapTile(atlas.findRegion("wall_northwest_outer")));
+        animatedTiles.put(9, new AnimatedTiledMapTile(0.1f, toStaticTiles(eastDripTiles)));
+        animatedTiles.put(10, new StaticTiledMapTile(atlas.findRegion("wall_converge_1")));
+        animatedTiles.put(11, new StaticTiledMapTile(atlas.findRegion("wall_northeast_inner")));
+        animatedTiles.put(12, new StaticTiledMapTile(atlas.findRegion("wall_south")));
+        animatedTiles.put(13, new StaticTiledMapTile(atlas.findRegion("wall_southeast_inner")));
+        animatedTiles.put(14, new StaticTiledMapTile(atlas.findRegion("wall_southwest_inner")));
+        animatedTiles.put(15, new AnimatedTiledMapTile(0.2f, toStaticTiles(wormTiles)));
 
         pipeTiles.put(3, new Pair<>(new StaticTiledMapTile(atlas.findRegion("pipe_north")), new StaticTiledMapTile(atlas.findRegion("canal_end_north"))));
         pipeTiles.put(6, new Pair<>(new StaticTiledMapTile(atlas.findRegion("pipe_west")), new StaticTiledMapTile(atlas.findRegion("canal_end_west_1"))));
@@ -57,6 +85,9 @@ public class TileLookup {
     }
 
     public static TiledMapTile getTile(int state) {
+        if (Math.random() > 0.9) {
+            return animatedTiles.get(state);
+        }
         return tiles.get(state);
     }
 
@@ -206,4 +237,15 @@ public class TileLookup {
 
         return collisionVertexes;
     }
+
+    public static Array<StaticTiledMapTile> toStaticTiles(TextureRegion[][] regions) {
+        Array<StaticTiledMapTile> tiles = new Array<>();
+        for (TextureRegion[] region : regions) {
+            for (TextureRegion textureRegion : region) {
+                tiles.add(new StaticTiledMapTile(textureRegion));
+            }
+        }
+        return tiles;
+    }
+
 }

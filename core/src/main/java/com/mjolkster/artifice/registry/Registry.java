@@ -23,7 +23,7 @@ public class Registry<T> {
                 "Duplicate key '" + key + "' in registry '" + registryName + "'");
         }
         RegistryObject<U> ro = new RegistryObject<>(supplier);
-        entries.put(key, ro.get()); // still eagerly stores, but works
+        entries.put(key, ro.get());
         return ro;
     }
 

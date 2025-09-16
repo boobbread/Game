@@ -1,19 +1,23 @@
 package com.mjolkster.artifice.graphics.screen;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.FocusListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.core.items.ConsumableItem;
 import com.mjolkster.artifice.core.items.Item;
 import com.mjolkster.artifice.registry.RegistryManager;
-import com.mjolkster.artifice.graphics.viewports.ExpandingViewport;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +30,7 @@ public class PlayerHUD {
     private final BitmapFont font;
 
     private final Label fpsLabel;
+    private final Label roundsLabel;
     private final ProgressBar healthBar;
     private final ProgressBar movementBar;
     private final Label apSlot;
@@ -35,29 +40,89 @@ public class PlayerHUD {
     private final List<ImageButton> permSlots = new ArrayList<>();
 
     private final PlayableCharacter player;
+    private int slotNumber = 0;
+    private int enterPressedTimes = 0;
 
-    public PlayerHUD(PlayableCharacter player) {
+    private boolean chestGUIOpen = false;
+
+    public PlayerHUD(PlayableCharacter player, GameScreen gameScreen) {
         this.player = player;
 
         // UI camera + stage
-        Viewport uiViewport = new ExpandingViewport(90f, true, new OrthographicCamera());
-        this.stage = new Stage(uiViewport);
+        this.stage = gameScreen.getStage();
         Gdx.input.setInputProcessor(stage);
+        this.stage.addListener(new InputListener() {
+            public boolean keyDown(InputEvent event, int keycode) {
+                if (!chestGUIOpen) {
+                    if (keycode == Input.Keys.LEFT) {
+
+                        if (slotNumber > 0) {
+                            slotNumber--;
+                            stage.setKeyboardFocus(tempSlots.get(slotNumber));
+                        } else {
+                            slotNumber = 2;
+                            stage.setKeyboardFocus(tempSlots.get(slotNumber));
+                        }
+
+                        Gdx.app.log("PlayerHUD", "Focus set to slot " + slotNumber);
+                    }
+                    if (keycode == Input.Keys.RIGHT) {
+
+                        if (slotNumber < 2) {
+                            slotNumber++;
+                            stage.setKeyboardFocus(tempSlots.get(slotNumber));
+                        } else {
+                            slotNumber = 0;
+                            stage.setKeyboardFocus(tempSlots.get(slotNumber));
+                        }
+                        Gdx.app.log("PlayerHUD", "Focus set to slot " + slotNumber);
+
+                    }
+                    if (keycode == Input.Keys.AT) {
+                        ImageButton slot = tempSlots.get(slotNumber);
+
+                        // Fire touchDown
+                        InputEvent down = new InputEvent();
+                        down.setType(InputEvent.Type.touchDown);
+                        down.setStage(stage);
+                        down.setTarget(slot);
+                        slot.fire(down);
+
+                        // Fire touchUp
+                        InputEvent up = new InputEvent();
+                        up.setType(InputEvent.Type.touchUp);
+                        up.setStage(stage);
+                        up.setTarget(slot);
+                        slot.fire(up);
+                    }
+                }
+                return true;
+            }
+        });
 
         this.skin = new Skin(Gdx.files.internal("GUI/GUISkin.json"));
         this.font = new BitmapFont();
 
-        // --- FPS Label ---
+        //  FPS Label ---
         Label.LabelStyle labelStyle = new Label.LabelStyle(font, Color.WHITE);
         fpsLabel = new Label("FPS: 0", labelStyle);
         fpsLabel.setAlignment(Align.topLeft);
         fpsLabel.setPosition(20, Gdx.graphics.getHeight() - 20);
         stage.addActor(fpsLabel);
 
+        // Top-right rounds label
+        roundsLabel = new Label("Rounds: 0", labelStyle);
+        roundsLabel.setAlignment(Align.topRight);
+        roundsLabel.setPosition(Gdx.graphics.getWidth() - 100, Gdx.graphics.getHeight() - 20);
+        stage.addActor(roundsLabel);
+
+
         // Root table
         Table root = new Table();
         root.setFillParent(true);
         stage.addActor(root);
+        stage.setKeyboardFocus(root);
+
 
         // Load background images
         Image leftColImage = new Image(skin, "GUILeft");
@@ -73,9 +138,9 @@ public class PlayerHUD {
         for (int i = 0; i < 3; i++) {
             ImageButton slot = new ImageButton(skin, "GUIslot");
             final int slotIndex = i;
-            slot.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
+            slot.addListener(new ClickListener() {
                 @Override
-                public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
+                public void clicked(InputEvent event, float x, float y) {
                     Item item = tempSlotItems.get(slot);
                     if (item != null) {
                         if (RegistryManager.ITEMS.get(item.getItemName()) instanceof ConsumableItem) {
@@ -86,10 +151,19 @@ public class PlayerHUD {
                     }
                 }
             });
+            slot.addListener(new FocusListener() {
+                @Override
+                public void keyboardFocusChanged(FocusEvent event, Actor actor, boolean focused) {
+                    slot.setChecked(focused);
+                }
+            });
+
             tempInv.add(slot).size(46).padLeft(21).padRight(21);
             tempSlots.add(slot);
         }
         tempInv.padLeft(2).padBottom(46);
+
+        stage.setKeyboardFocus(tempSlots.get(0));
         leftCol.add(tempInv);
         leftCol.row();
 
@@ -133,7 +207,12 @@ public class PlayerHUD {
         root.add(rightStack).expand().right().bottom();
     }
 
+    public void resetFocus() {
+        stage.setKeyboardFocus(tempSlots.get(slotNumber));
+    }
+
     public void update(float delta) {
+        roundsLabel.setText("Rounds: " + player.roundsPassed);
         fpsLabel.setText("FPS: " + Gdx.graphics.getFramesPerSecond());
         healthBar.setValue(player.health / player.maxHealth * 100f);
         movementBar.setValue(100 - (player.distanceTraveledThisTurn / player.moveDistance * 100));
@@ -186,5 +265,13 @@ public class PlayerHUD {
         stage.dispose();
         skin.dispose();
         font.dispose();
+    }
+
+    public Stage getStage() {
+        return this.stage;
+    }
+
+    public void chestGUIOpenToggle() {
+        chestGUIOpen = !chestGUIOpen;
     }
 }

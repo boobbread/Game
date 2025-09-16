@@ -1,4 +1,4 @@
-package com.mjolkster.artifice.core.world;
+package com.mjolkster.artifice.core.world.generation;
 
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;

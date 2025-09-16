@@ -9,6 +9,10 @@ public class Dice {
     int modifier;
     Random random;
 
+    /**
+     * Rolls a dice
+     * @param roll The dice roll you want (number - dice - modifier)
+     */
     public Dice(String roll) {
         String[] splitDamageRoll = roll.split("\\s*-\\s*");
         this.numDice = Integer.parseInt(splitDamageRoll[0]);

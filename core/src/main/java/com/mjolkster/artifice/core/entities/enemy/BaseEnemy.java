@@ -2,6 +2,7 @@ package com.mjolkster.artifice.core.entities.enemy;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.ParticleEffect;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
@@ -9,6 +10,7 @@ import com.mjolkster.artifice.core.entities.Entity;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.core.world.ChestEntity;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
+import com.mjolkster.artifice.util.geometry.Hitbox;
 import com.mjolkster.artifice.util.graphics.Sprite;
 import com.mjolkster.artifice.util.ai.AStarPathfinder;
 import com.mjolkster.artifice.util.geometry.Line;
@@ -21,7 +23,7 @@ import java.util.Set;
 public abstract class BaseEnemy extends Entity {
 
     protected final PlayableCharacter target;
-    protected final Rectangle hitbox;
+    protected Hitbox hitbox;
     protected final AStarPathfinder pathfinder = new AStarPathfinder();
     protected Queue<Vector2> currentPath = new LinkedList<>();
     protected float distanceTravelled = 0f;
@@ -47,19 +49,16 @@ public abstract class BaseEnemy extends Entity {
 
         this.x = spawnPoint.x / 32f;
         this.y = spawnPoint.y / 32f;
-        this.hitbox = new Rectangle(x, y + 1 / 32f, 1f, 16 / 32f);
-
-        this.sprite.setDirection(Sprite.Direction.IDLE);
     }
 
-    public Rectangle getHitbox() {
-        return hitbox;
-    }
+    public abstract Hitbox getHitbox();
 
     /**
      * Main update loop
      */
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
+
+        this.hitbox = this.sprite.getHitbox();
 
         if (state == NPCState.ALIVE && health <= 0) {
             state = NPCState.DYING;
@@ -70,7 +69,7 @@ public abstract class BaseEnemy extends Entity {
             case ALIVE:
                 followPath(delta);
                 sprite.update(delta);
-                sprite.getHitbox().setPosition(x, y);
+                sprite.getHitbox().setOrigin(x, y);
 
                 if (!hasCompletedTurn) {
                     performAction();
@@ -80,11 +79,14 @@ public abstract class BaseEnemy extends Entity {
 
             case DYING:
                 deathTimer += delta;
+                sprite.flashRed();
                 sprite.update(delta);
                 if (deathTimer >= 1f) state = NPCState.DEAD;
+                sprite.playDeathEffect(this.x + 0.5f, this.y + 0.5f);
                 break;
 
             case DEAD:
+
                 break;
         }
     }
@@ -97,20 +99,20 @@ public abstract class BaseEnemy extends Entity {
     /**
      * Default damage behavior for simple melee enemies
      */
-    protected void damagePlayer(PlayableCharacter target) {
-        if (hitbox.overlaps(target.collisionBox.getBounds()) && !hasDamagedPlayer) {
-            target.changeHealth(-1);
-            hasDamagedPlayer = true;
-        }
-    }
+    protected abstract void damagePlayer(PlayableCharacter target);
 
     /**
      * Pathfinding recalculation
      */
     public void recalculatePath() {
         Vector2 start = new Vector2(x, y);
-        Vector2 goal = new Vector2((int) Math.ceil(target.getX()), (int) Math.ceil(target.getY()));
-        Queue<Vector2> proposedPath = pathfinder.createAStarPathfinder(start, goal, gameScreen);
+        Vector2 goal = new Vector2(
+            target.collisionBox.getBounds().x + target.collisionBox.getBounds().getWidth() / 2f,
+            target.collisionBox.getBounds().y + target.collisionBox.getBounds().getHeight() / 2f
+        );
+        Vector2 goalTile = new Vector2(Math.round(goal.x), Math.round(goal.y));
+
+        Queue<Vector2> proposedPath = pathfinder.createAStarPathfinder(start, goalTile, gameScreen);
         if (!proposedPath.isEmpty()) {
             currentPath = proposedPath;
         }
@@ -124,8 +126,10 @@ public abstract class BaseEnemy extends Entity {
      */
     public void followPath(float delta) {
 
-        if (currentPath == null || currentPath.isEmpty() || distanceTravelled >= moveDistance) {
-            hasCompletedTurn = true;
+        if ((currentPath == null || currentPath.isEmpty() || distanceTravelled >= moveDistance)) {
+            if (this instanceof WaspEnemy) {
+                hasCompletedTurn = ((WaspEnemy) this).hasFinishedAttack;
+            } else hasCompletedTurn = true;
             return;
         }
 
@@ -143,7 +147,7 @@ public abstract class BaseEnemy extends Entity {
             }
         }
 
-        hitbox.setPosition(x, y);
+        hitbox.setOrigin(x, y);
     }
 
     /**
@@ -179,13 +183,13 @@ public abstract class BaseEnemy extends Entity {
         float angle = averageDirection.angleDeg();
 
         if (angle >= 45 && angle < 135) {
-            sprite.setDirection(Sprite.Direction.UP);
-        } else if (angle >= 135 && angle < 225) {
             sprite.setDirection(Sprite.Direction.DOWN);
-        } else if (angle >= 225 && angle < 315) {
-            sprite.setDirection(Sprite.Direction.RIGHT);
-        } else {
+        } else if (angle >= 135 && angle < 225) {
             sprite.setDirection(Sprite.Direction.LEFT);
+        } else if (angle >= 225 && angle < 315) {
+            sprite.setDirection(Sprite.Direction.UP);
+        } else {
+            sprite.setDirection(Sprite.Direction.RIGHT);
         }
     }
 
@@ -244,10 +248,6 @@ public abstract class BaseEnemy extends Entity {
             lastX = point.x;
             lastY = point.y;
         }
-    }
-
-    public boolean hasDamagedPlayer() {
-        return hasDamagedPlayer;
     }
 
     public void damagedPlayer(boolean result) {

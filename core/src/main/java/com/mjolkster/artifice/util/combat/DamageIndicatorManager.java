@@ -24,7 +24,7 @@ public class DamageIndicatorManager {
         style.font = font;
         style.fontColor = Color.RED;
 
-        font.getData().setScale(fontScale); // shrink or scale font
+        font.getData().setScale(fontScale);
     }
 
     /**
@@ -37,10 +37,9 @@ public class DamageIndicatorManager {
         damageLabel.setAlignment(Align.center);
         damageLabel.setPosition(x, y);
 
-        // Animate rise and fade out, then remove from stage
         damageLabel.addAction(Actions.sequence(
             Actions.parallel(
-                Actions.moveBy(0, 30, 1f), // rise 30 pixels over 1 second
+                Actions.moveBy(0, 30, 1f),
                 Actions.fadeOut(1f)
             ),
             Actions.removeActor()

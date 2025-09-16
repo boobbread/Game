@@ -6,6 +6,8 @@ dependencies {
   api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
   api "com.badlogicgames.gdx:gdx:$gdxVersion"
   implementation "de.alsclo:voronoi-java:1.0"
+  implementation "com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.3"
+  implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:2.2.3"
 
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"

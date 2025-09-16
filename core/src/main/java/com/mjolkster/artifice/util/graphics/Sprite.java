@@ -3,27 +3,39 @@ package com.mjolkster.artifice.util.graphics;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.ParticleEffect;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.mjolkster.artifice.util.geometry.Hitbox;
 import com.mjolkster.artifice.util.geometry.HitboxExtractor;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Sprite implements Disposable {
 
-    private static final float FLASH_DURATION = 0.15f; // 150ms flash
+    private static final float FLASH_DURATION = 0.300f; // in secs
     private final Map<Direction, Animation<TextureRegion>> animations;
     private final Map<Direction, Hitbox> hitboxes;
 
     private final Texture spriteSheet;
     private Direction currentDirection;
     private float stateTime;
-    private final int tileWidth;
     private boolean flashing = false;
     private float flashTimer = 0f;
+    private final int spriteWidth;
+    private final int spriteHeight;
+
+    private final Map<String, Animation<TextureRegion>> customAnimations = new HashMap<>();
+    private String currentAnimation = null;
+    private boolean loopCurrent = true;
+
+    private ParticleEffect effect;
+    private boolean playEffect;
+
     /**
      * Creates animations from a sprite sheet.
      *
@@ -39,15 +51,15 @@ public class Sprite implements Disposable {
         this.currentDirection = Direction.IDLE;
         this.stateTime = 0f;
 
-        // Split sprite sheet into frames
-        TextureRegion[][] tmp = TextureRegion.split(spriteSheet,
-            spriteSheet.getWidth() / frameCols,
-            spriteSheet.getHeight() / frameRows);
+        this.spriteWidth = spriteSheet.getWidth() / frameCols;
+        this.spriteHeight = spriteSheet.getHeight() / frameRows;
 
-        this.tileWidth = spriteSheet.getWidth() / frameCols;
+        TextureRegion[][] tmp = TextureRegion.split(spriteSheet,
+            spriteWidth,
+            spriteHeight);
 
         // Assign animations per direction assuming rows = directions in order:
-        // 0: DOWN, 1: LEFT, 2: RIGHT, 3: UP, 4: IDLE (optional)
+        // UP, DOWN, LEFT, RIGHT, IDLE
 
         Direction[] dirs = Direction.values();
         int rowsToUse = Math.min(frameRows, dirs.length);
@@ -55,12 +67,11 @@ public class Sprite implements Disposable {
         for (int r = 0; r < rowsToUse; r++) {
             TextureRegion[] frames = tmp[r];
             animations.put(dirs[r], new Animation<>(frameDuration, frames));
-            hitboxes.put(dirs[r], HitboxExtractor.extractHitbox(spriteSheet, 0, r * 32, tileWidth, 32, 5));
         }
 
-        hitboxes.forEach((direction, hitbox) -> {
-            hitbox.scale(1 / 32f, 1 / 32f);
-        });
+        effect = new ParticleEffect();
+        effect.load(Gdx.files.internal("particles/death_particle/death_particle.p"), Gdx.files.internal("particles/death_particle"));
+        playEffect = false;
     }
 
     /**
@@ -100,6 +111,7 @@ public class Sprite implements Disposable {
      */
     public void update(float deltaTime) {
         stateTime += deltaTime;
+        effect.update(deltaTime);
 
         if (flashing) {
             flashTimer -= deltaTime;
@@ -109,10 +121,28 @@ public class Sprite implements Disposable {
         }
     }
 
+    public boolean isAnimationFinished() {
+        if (currentAnimation == null) return false;
+        Animation<TextureRegion> anim = customAnimations.get(currentAnimation);
+        return anim != null && anim.isAnimationFinished(stateTime);
+    }
+
+    public void stopAnimation() {
+        currentAnimation = null;
+        stateTime = 0f;
+    }
+
     /**
      * Get current frame for rendering
      */
     public TextureRegion getCurrentFrame() {
+        if (currentAnimation != null) {
+            Animation<TextureRegion> anim = customAnimations.get(currentAnimation);
+            if (anim != null) {
+                return anim.getKeyFrame(stateTime, loopCurrent);
+            }
+        }
+
         Animation<TextureRegion> anim = animations.get(currentDirection);
         if (anim == null) anim = animations.get(Direction.IDLE); // fallback
         return anim != null ? anim.getKeyFrame(stateTime, true) : null;
@@ -134,7 +164,7 @@ public class Sprite implements Disposable {
      */
     public void setPosition(float x, float y) {
         Hitbox hb = getHitbox();
-        if (hb != null) hb.setPosition(x, y);
+        if (hb != null) hb.setOrigin(x, y);
     }
 
     /**
@@ -165,9 +195,14 @@ public class Sprite implements Disposable {
                 batch.setColor(1f, 1f, 1f, 1f); // normal
             }
 
-            batch.draw(frame, x, y, tileWidth / 32f, 1f);
+            batch.draw(frame, x, y, spriteWidth / 32f, spriteHeight / 32f);
             batch.setColor(1f, 1f, 1f, 1f); // reset
         }
+
+        if (playEffect) {
+            effect.draw(batch);
+        }
+
     }
 
     /**
@@ -175,6 +210,33 @@ public class Sprite implements Disposable {
      */
     public void reset() {
         stateTime = 0f;
+    }
+
+    public void addAnimation(String key, TextureRegion[] frames, float frameDuration, boolean loop) {
+        Array<TextureRegion> array = new Array<>(frames);
+        Animation<TextureRegion> anim = new Animation<>(
+            frameDuration,
+            array,
+            loop ? Animation.PlayMode.LOOP : Animation.PlayMode.NORMAL
+        );
+        customAnimations.put(key, anim);
+    }
+
+    public void playAnimation(String key, boolean loop) {
+        if (!customAnimations.containsKey(key)) return;
+
+        if (!key.equals(currentAnimation)) {
+            currentAnimation = key;
+            stateTime = 0f; // restart animation
+            loopCurrent = loop;
+        }
+    }
+
+    public void playDeathEffect(float x, float y) {
+        effect.setPosition(x, y);
+        effect.start();
+
+        playEffect = true;
     }
 
     public enum Direction {

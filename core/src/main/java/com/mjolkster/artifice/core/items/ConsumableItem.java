@@ -5,11 +5,13 @@ import com.mjolkster.artifice.core.entities.PlayableCharacter;
 public class ConsumableItem extends Item {
 
     int effectTime;
+    boolean poisonous;
 
-    public ConsumableItem(String name, Rarity rarity, Bonus bonus, int bonusAmount, int effectTime, String itemDescription) {
-        super(name, rarity, bonus, bonusAmount, itemDescription);
+    public ConsumableItem(String name, Rarity rarity, Bonus bonus, int bonusAmount, int effectTime, boolean poisonous) {
+        super(name, rarity, bonus, bonusAmount, poisonous);
 
         this.effectTime = effectTime;
+        this.poisonous = poisonous;
     }
 
     public int getEffectTime() {
@@ -23,5 +25,9 @@ public class ConsumableItem extends Item {
     @Override
     public void onLose(PlayableCharacter player) {
 
+    }
+
+    public boolean isPoisonous() {
+        return poisonous;
     }
 }

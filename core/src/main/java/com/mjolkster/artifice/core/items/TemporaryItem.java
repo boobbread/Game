@@ -4,8 +4,8 @@ import com.mjolkster.artifice.core.entities.PlayableCharacter;
 
 public class TemporaryItem extends Item {
 
-    public TemporaryItem(String name, Rarity rarity, Bonus bonus, int bonusAmount, String itemDescription) {
-        super(name, rarity, bonus, bonusAmount, itemDescription);
+    public TemporaryItem(String name, Rarity rarity, Bonus bonus, int bonusAmount, boolean poisonous) {
+        super(name, rarity, bonus, bonusAmount, poisonous);
     }
 
     @Override

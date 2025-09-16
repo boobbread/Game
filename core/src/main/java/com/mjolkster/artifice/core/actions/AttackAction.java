@@ -10,6 +10,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.mjolkster.artifice.core.entities.Entity;
 import com.mjolkster.artifice.core.entities.enemy.BaseEnemy;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
+import com.mjolkster.artifice.core.entities.enemy.WaspEnemy;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
 import com.mjolkster.artifice.util.geometry.Hitbox;
 import com.mjolkster.artifice.util.math.Dice;
@@ -38,6 +39,9 @@ public class AttackAction implements Action {
 
     private float stateTime;
     private GameScreen gameScreen;
+
+    private boolean apSpent = false;
+
 
     /**
      * Performs an attack action from an effector
@@ -83,7 +87,7 @@ public class AttackAction implements Action {
 
         int frameIndex = animation.getKeyFrameIndex(stateTime);
         frameHb = frameHitboxes.get(frameIndex);
-        activeBounds.set(frameHb.getBounds());   // copy size
+        activeBounds.set(frameHb.getBounds());
         activeBounds.setPosition(effector.x + frameHb.getBounds().x, effector.y + frameHb.getBounds().y);
 
         if (attacking) {
@@ -95,30 +99,41 @@ public class AttackAction implements Action {
 
         for (BaseEnemy npc : gameScreen.getNPCs()) {
 
-            if (hitEntities.contains(npc)) return;
+            if (hitEntities.contains(npc)) continue; // already hit this entity
 
             if (npc.getHitbox().overlaps(activeBounds)) {
+                if (!apSpent) {
+                    effector.actionPoints -= actionPointCost;
+                    apSpent = true;
+                }
+
                 hitEntities.add(npc);
-                if (effector.actionPoints >= actionPointCost) {
-                    int damage = diceRoller.rollDice() + effector.strength;
+
+                int damage = diceRoller.rollDice() + effector.strength;
+
+                if (npc instanceof WaspEnemy) {
+                    if (((WaspEnemy) npc).getWaspState() == WaspEnemy.WaspState.WAIT) {
+                        npc.changeHealth(-damage);
+                    }
+                } else {
                     npc.changeHealth(-damage);
                 }
             }
         }
-
     }
+
 
     public void draw(SpriteBatch batch, float x, float y) {
         TextureRegion currentFrame = animation.getKeyFrame(stateTime);
 
-        float pixelsPerTile = 32f; // or 64, depending on your setup
+        float pixelsPerTile = 32f;
         float worldWidth = currentFrame.getRegionWidth() / pixelsPerTile;
         float worldHeight = currentFrame.getRegionHeight() / pixelsPerTile;
 
         batch.draw(
             currentFrame,
-            (x - worldWidth / 2f) + 1f,   // center horizontally
-            y,                     // anchor at feet
+            (x - worldWidth / 2f) + 1f,
+            y,
             worldWidth,
             worldHeight
         );
@@ -153,20 +168,17 @@ public class AttackAction implements Action {
 
     @Override
     public boolean execute(PlayableCharacter effector, Entity target, GameScreen gameScreen) {
+        if (effector.actionPoints < actionPointCost) return false; // not enough AP
 
         this.gameScreen = gameScreen;
         this.effector = effector;
-        stateTime = 0;
+        this.stateTime = 0;
+        this.attacking = true;
 
-        if (effector.actionPoints >= actionPointCost) {
-            this.attacking = true;
-        }
+        this.hitEntities.clear();
+        this.apSpent = false;
 
-        if (!hitEntities.isEmpty()) {
-            this.hitEntities.clear();
-            return true;
-        } else return false;
-
-
+        return true; // attack started
     }
+
 }

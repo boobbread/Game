@@ -10,6 +10,8 @@ import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
+import com.mjolkster.artifice.core.world.generation.LineHandler;
+import com.mjolkster.artifice.core.world.generation.MapGenerator;
 import com.mjolkster.artifice.util.geometry.Line;
 
 import java.util.ArrayList;
@@ -48,15 +50,16 @@ public class GameMap {
         this.playerLight.setColor(Color.GOLDENROD);
         this.playerLight.setDistance(5f);
         this.playerLight.setSoft(true);
+        this.playerLight.setSoftnessLength(0.5f);
 
         this.collisionBoxes = mapGenerator.getCollisionLines();
-        List<List<Vector2>> outlines = MapGenerator.orderOutline(collisionBoxes);
+        List<List<Vector2>> outlines = LineHandler.orderOutline(collisionBoxes);
         createBodiesFromPolygons(world, outlines);
 
         Gdx.app.log("GameMap", "Initialisation complete");
     }
 
-    // --- Rendering ---
+    // Rendering
     public void render(OrthographicCamera camera) {
         renderer.setView(camera);
         renderer.render();
@@ -64,8 +67,8 @@ public class GameMap {
 
     public void renderLighting(OrthographicCamera camera, PlayableCharacter player) {
         playerLight.setPosition(
-            player.x + player.collisionBox.getBounds().width / 2,
-            player.y + player.collisionBox.getBounds().height / 2);
+            player.x + 0.5f,
+            player.y + 0.5f);
         playerLight.update();
         rayHandler.setCombinedMatrix(camera);
         rayHandler.updateAndRender();
@@ -82,7 +85,7 @@ public class GameMap {
         world.dispose();
     }
 
-    // --- Collision creation ---
+    // Collision creation
     public List<Body> createBodiesFromPolygons(World world, List<List<Vector2>> polygons) {
         List<Body> bodies = new ArrayList<>();
 
@@ -117,7 +120,7 @@ public class GameMap {
         return bodies;
     }
 
-    // --- Getters ---
+    // Getters
     public TiledMap getMap() { return map; }
     public OrthogonalTiledMapRenderer getRenderer() { return renderer; }
     public RayHandler getRayHandler() { return rayHandler; }

@@ -15,14 +15,13 @@ import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.core.world.EntityManager;
+import com.mjolkster.artifice.core.world.generation.LineHandler;
 import com.mjolkster.artifice.graphics.viewports.AspectRatioViewport;
 import com.mjolkster.artifice.util.geometry.Line;
-import com.mjolkster.artifice.core.world.MapGenerator;
+import com.mjolkster.artifice.core.world.generation.MapGenerator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
-import static com.mjolkster.artifice.graphics.screen.GameScreen.game;
 
 /**
  * A sublevel is a self-contained TMX map that the player
@@ -42,11 +41,8 @@ public class SublevelScreen implements Screen {
     private final SpriteBatch spriteBatch;
 
     private final Set<Line> collisionBoxes;
-    private final List<Body> collisionBodies;
 
     private final Box2DDebugRenderer debugRenderer;
-
-    private final Runnable onExitCallback; // called when player touches exit
 
     public SublevelScreen(String tmxPath, EntityManager entityManager, Runnable onExitCallback) {
         this.entityManager = entityManager;
@@ -72,7 +68,7 @@ public class SublevelScreen implements Screen {
 
         // Load collision from TMX
         this.collisionBoxes = MapGenerator.loadCollisionLinesFromMap(map);
-        List<List<Vector2>> outlines = MapGenerator.orderOutline(collisionBoxes);
+        List<List<Vector2>> outlines = LineHandler.orderOutline(collisionBoxes);
         this.collisionBodies = createBodiesFromPolygons(world, outlines);
 
         // TODO: place player at sublevel spawnpoint (parse from object layer)

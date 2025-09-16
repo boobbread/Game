@@ -1,0 +1,54 @@
+{
+  "small_health": {
+    "displayName": "Small Health Potion",
+    "description": "A small health boost."
+  },
+  "medium_health": {
+    "displayName": "Medium Health Potion",
+    "description": "A medium health boost."
+  },
+  "large_health": {
+    "displayName": "Large Health Potion",
+    "description": "A large health boost."
+  },
+  "ruined_copper_bracer": {
+    "displayName": "Ruined Copper Bracer",
+    "description": "A small strength boost."
+  },
+  "tarnished_copper_bracer": {
+    "displayName": "Tarnished Copper Bracer",
+    "description": "A medium strength boost."
+  },
+  "pristine_copper_bracer": {
+    "displayName": "Pristine Copper Bracer",
+    "description": "A large strength boost."
+  },
+  "nest_feather": {
+    "displayName": "Nest Feather",
+    "description": "A feather you took from your nest upon reaching adolescence. It stands to be one of the few things that reminds you of your old home."
+  },
+  "charred_flesh": {
+    "displayName": "Charred Flesh",
+    "description": "A charred piece of flesh, still steaming slightly."
+  },
+  "sewer_fungus": {
+    "displayName": "Sewer Fungus",
+    "description": "A strange fungus, found growing in the rotten bottom of the chest."
+  },
+  "spoiled_meat": {
+    "displayName": "Spoiled Meat",
+    "description": "A spoiled, disgusting chunk of meat."
+  },
+  "bitter_root": {
+    "displayName": "Bitter Root",
+    "description": "A bitter root with a foul taste."
+  },
+  "rag_wraps": {
+    "displayName": "Rag Wraps",
+    "description": "Dirty ragged wrappings that provide minimal protection."
+  },
+  "glass_shard": {
+    "displayName": "Glass Shard",
+    "description": "A sharp fragment of broken glass, dangerous to handle."
+  }
+}

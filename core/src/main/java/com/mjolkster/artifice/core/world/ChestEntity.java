@@ -1,16 +1,20 @@
 package com.mjolkster.artifice.core.world;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.mjolkster.artifice.core.entities.Entity;
 import com.mjolkster.artifice.core.items.ConsumableItem;
 import com.mjolkster.artifice.core.items.Item;
 import com.mjolkster.artifice.core.items.TemporaryItem;
+import com.mjolkster.artifice.io.input.ControllerInputHandler;
+import com.mjolkster.artifice.io.input.HybridInputHandler;
 import com.mjolkster.artifice.registry.Registry;
 import com.mjolkster.artifice.graphics.screen.ChestGUI;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
@@ -30,13 +34,17 @@ public class ChestEntity extends Entity {
     private ChestState state = ChestState.CLOSED;
     private List<Item> loot;
     private Rectangle hitbox;
+    private Label interactionLabel;
+    private boolean labelAdded = false;
 
-    public ChestEntity(int maxHealth, int armorClass, float movement, int maxActionPoints, GameScreen gameScreen) {
-        super(maxHealth, armorClass, movement, maxActionPoints, new Sprite("ChestSprite.png", 4, 5, 0.2f), gameScreen);
+    public ChestEntity(GameScreen gameScreen) {
+        super(Integer.MAX_VALUE, 0, 0, 0, new Sprite("ChestSprite.png", 4, 5, 0.2f), gameScreen);
     }
 
     public void checkForOpen(OrthographicCamera camera) {
-        Vector3 touchPos = new Vector3();
+        Vector3 touchPos;
+        Vector3 position = new Vector3(this.x + (this.getHitbox().width / 2),this.y + this.getHitbox().height + 0.2f, 0);
+        camera.project(position);
         if (Gdx.input.justTouched()) {
             touchPos = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
 
@@ -47,14 +55,54 @@ public class ChestEntity extends Entity {
                 Gdx.app.log("ChestEntity", "Chest Opened");
             }
         }
+
+        if (gameScreen.getEntityManager().getInputHandler().isController()) {
+            ControllerInputHandler controllerHandler = ((HybridInputHandler)gameScreen.getEntityManager().getInputHandler()).getControllerHandler();
+            if (hitbox.overlaps(gameScreen.getEntityManager().getPlayer().collisionBox.getBounds())) {
+                if (!labelAdded) {
+
+                    // TODO : make the label into just an image of the A button
+                    Label.LabelStyle style = new Label.LabelStyle(gameScreen.getSkin().getFont("def"), Color.WHITE);
+                    interactionLabel = new Label("Press A", style);
+
+                    interactionLabel.setPosition(position.x, position.y);
+
+                    gameScreen.getStage().addActor(interactionLabel);
+                    labelAdded = true;
+                }
+            } else {
+                if (labelAdded && interactionLabel != null) {
+                    interactionLabel.remove();
+                    labelAdded = false;
+                }
+            }
+
+            if (labelAdded && interactionLabel != null) {
+                interactionLabel.setPosition(position.x, position.y);
+                if (controllerHandler.isaPressed()) {
+                    openChest(RegistryManager.ITEMS, gameScreen.getStage(), gameScreen.getSkin());
+
+                }
+            }
+        }
     }
 
     public void openChest(Registry<Item> itemRegistry, Stage stage, Skin skin) {
+
+        gameScreen.getHud().chestGUIOpenToggle();
+
+        if (interactionLabel != null) {
+            interactionLabel.remove();
+            interactionLabel = null;
+            labelAdded = false;
+        }
+
         if (state == ChestState.OPEN) return; // already open
 
         this.sprite.setDirection(Sprite.Direction.DOWN);
         state = ChestState.OPEN;
-        generateLoot(itemRegistry); // fill the chest with random items
+        gameScreen.pauseGame();
+        generateLoot(itemRegistry);
 
         ChestGUI gui = new ChestGUI(stage, skin, gameScreen);
         if (loot.isEmpty()) Gdx.app.log("ChestEntity", "loot is empty");
@@ -62,9 +110,20 @@ public class ChestEntity extends Entity {
     }
 
     public void closeChest() {
+
+        gameScreen.getHud().chestGUIOpenToggle();
+
         state = ChestState.CLOSED;
         gameScreen.getEntityManager().getChests().remove(this);
         this.sprite.setDirection(Sprite.Direction.LEFT);
+
+        if (interactionLabel != null) {
+            interactionLabel.remove();
+            interactionLabel = null;
+            labelAdded = false;
+        }
+
+        gameScreen.getHud().resetFocus();
     }
 
     public void spawnChest(float x, float y) {
@@ -119,7 +178,7 @@ public class ChestEntity extends Entity {
     }
 
     public Rectangle getHitbox() {
-        if (hitbox == null) hitbox = new Rectangle(x + 3 / 32f, y + 2 / 32f, 26 / 32f, 21 / 32f); // 1x1 tile
+        if (hitbox == null) hitbox = new Rectangle(x + 3 / 32f, y + 2 / 32f, 26 / 32f, 21 / 32f);
         else hitbox.setPosition(x, y);
         return hitbox;
     }

@@ -97,4 +97,10 @@ wall_converge_1
 bounds:96,96,32,32
 wall_converge_2
 bounds:96,128,32,32
+east_pipe_drip
+bounds:0,192,128,32
+west_pipe_drip
+bounds:128,192,128,32
+worms
+bounds:0,224,256,32
 

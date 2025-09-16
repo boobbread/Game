@@ -9,18 +9,15 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mjolkster.artifice.core.GameClass;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.core.entities.enemy.BaseEnemy;
 import com.mjolkster.artifice.core.world.EntityManager;
 import com.mjolkster.artifice.core.world.GameMap;
-import com.mjolkster.artifice.core.world.MapGenerator;
 import com.mjolkster.artifice.graphics.viewports.AspectRatioViewport;
 import com.mjolkster.artifice.graphics.viewports.ExpandingViewport;
 import com.mjolkster.artifice.io.FileHandler;
@@ -74,8 +71,7 @@ public class GameScreen implements Screen {
         seed = (long) (Math.random() * 4000000);
         gameMap = new GameMap(seed);
 
-        // Entities
-        entityManager = new EntityManager(gameMap, slotNumber, this);
+
 
         // Rendering
         spriteBatch = new SpriteBatch();
@@ -86,10 +82,14 @@ public class GameScreen implements Screen {
 
         // UI
         skin = new Skin(Gdx.files.internal("GUI/GUISkin.json"));
+        skin.getFont("def").getData().markupEnabled = true;
+
         Viewport uiViewport = new ExpandingViewport(90f, true, new OrthographicCamera());
         stage = new Stage(uiViewport, spriteBatch);
 
-        hud = new PlayerHUD(entityManager.getPlayer());
+        // Entities
+        entityManager = new EntityManager(gameMap, slotNumber, this);
+        hud = new PlayerHUD(entityManager.getPlayer(), this);
 
         DamageIndicatorManager.init(stage, new BitmapFont(Gdx.files.internal("GUI/default.fnt")), 2f);
 
@@ -123,6 +123,8 @@ public class GameScreen implements Screen {
         if (!paused) {
             gameMap.step(delta);
             entityManager.update(delta, camera, gameMap.getCollisionBoxes());
+        } else {
+            entityManager.updateOnlyChests(delta, camera, gameMap.getCollisionBoxes());
         }
 
         draw();
@@ -159,8 +161,8 @@ public class GameScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         PlayableCharacter player = entityManager.getPlayer();
-        float playerCenterX = player.x + player.collisionBox.getBounds().width / 2f;
-        float playerCenterY = player.y + player.collisionBox.getBounds().height / 2f;
+        float playerCenterX = player.x + 0.5f;
+        float playerCenterY = player.y + 0.5f;
         camera.position.set(playerCenterX, playerCenterY, 0);
         camera.update();
 
@@ -234,4 +236,7 @@ public class GameScreen implements Screen {
     public PlayableCharacter getPlayer() { return entityManager.getPlayer(); }
     public List<BaseEnemy> getNPCs() { return entityManager.getNPCs();}
 
+    public void pauseGame() {
+        paused = !paused;
+    }
 }

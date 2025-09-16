@@ -33,10 +33,8 @@ public class EndPoint {
         game = GameScreen.game;
         this.gameScreen = gameScreen;
 
-        // Create hitbox (adjust size as needed)
         this.hitbox = new Rectangle(this.position.x, this.position.y, 1f, 1f);
 
-        // Load texture and create animations
         Texture texture = new Texture(Gdx.files.internal("endpoint.png"));
         TextureRegion[][] frames = TextureRegion.split(texture, 32, 32);
 
@@ -54,13 +52,12 @@ public class EndPoint {
     public void update(float delta) {
         stateTime += delta;
 
-        // Handle state transitions
         if (currentState == State.OPENING) {
-            // Check if opening animation is complete
+
             if (openingAnimation.isAnimationFinished(stateTime)) {
                 currentState = State.OPEN;
                 playerCanInteract = true;
-                stateTime = 0; // Reset for open animation
+                stateTime = 0;
             }
         }
 
@@ -109,6 +106,7 @@ public class EndPoint {
                 gameScreen.getPlayer().changeHealth(3);
             }
 
+            gameScreen.getPlayer().roundsPassed += 1;
             FileHandler.CreateNewSave(gameScreen.getPlayer(), gameScreen.getSeed(), GameScreen.playerSlotNumber);
             gameScreen.requestRestart();
 

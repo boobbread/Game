@@ -7,13 +7,17 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.mjolkster.artifice.core.entities.Archetype;
+import com.mjolkster.artifice.core.entities.CampFireEntity;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.core.entities.enemy.BaseEnemy;
 import com.mjolkster.artifice.core.entities.enemy.SlugEnemy;
+import com.mjolkster.artifice.core.entities.enemy.WaspEnemy;
 import com.mjolkster.artifice.core.items.Inventory;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
 import com.mjolkster.artifice.graphics.screen.SublevelScreen;
 import com.mjolkster.artifice.io.FileHandler;
+import com.mjolkster.artifice.io.input.HybridInputHandler;
+import com.mjolkster.artifice.io.input.InputHandler;
 import com.mjolkster.artifice.registry.registries.ItemRegistry;
 import com.mjolkster.artifice.util.combat.TurnManager;
 import com.mjolkster.artifice.util.geometry.EndPoint;
@@ -31,10 +35,12 @@ import static com.mjolkster.artifice.graphics.screen.GameScreen.game;
 public class EntityManager {
     private PlayableCharacter player;
     private final List<BaseEnemy> NPCs = new ArrayList<>();
+    private final List<CampFireEntity> campfires = new ArrayList<>();
     private final List<ChestEntity> chests = new ArrayList<>();
     private final TurnManager turnManager;
     private final GameScreen gameScreen;
     private final EndPoint endPoint;
+    private final InputHandler inputHandler;
 
     public EntityManager(GameMap map, int slotNumber, GameScreen gameScreen) {
 
@@ -44,6 +50,8 @@ public class EntityManager {
         Vector2 spawnpoint = map.getPlayerSpawnpoint();
         FileHandler.SaveSlot save = FileHandler.loadTempSave(slotNumber);
 
+        inputHandler = new HybridInputHandler(gameScreen.getStage());
+
         if (slotNumber >= 0 && slotNumber <= 2 && save != null) {
             FileHandler.Save saveData = save.saveData;
 
@@ -52,7 +60,7 @@ public class EntityManager {
                 new Inventory(3).getContents(),
                 new Inventory(5).getContents(),
                 saveData.archetype, saveData.roundsPassed,
-                slotNumber, spawnpoint, gameScreen
+                slotNumber, spawnpoint, gameScreen, inputHandler
             );
 
             saveData.tempInv.forEach(item -> {
@@ -68,21 +76,18 @@ public class EntityManager {
             });
 
         } else {
-            player = new PlayableCharacter(Archetype.FIGHTER, spawnpoint, gameScreen);
+            player = new PlayableCharacter(Archetype.FIGHTER, spawnpoint, gameScreen, inputHandler);
             player.addItemToPermanentInv(ItemRegistry.nest_feather.get());
         }
 
         player.actionPoints = player.maxActionPoints;
         player.setContext(PlayableCharacter.Context.DUNGEON);
 
-        // spawn NPCs using map.getSpawnableAreas()
         List<Vector2> spawnableAreas = map.getSpawnableAreas();
         spawnNPCs(spawnableAreas, player.roundsPassed);
 
-        // init TurnManager
         turnManager = new TurnManager(player, NPCs);
 
-        // spawn endpoint
         endPoint = new EndPoint(gameScreen.getGameMap().getEndPointPosition(), gameScreen);
 
         Gdx.app.log("EntityManager", "Initialisation complete");
@@ -92,18 +97,6 @@ public class EntityManager {
     public void update(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
         turnManager.update(delta);
         player.update(delta, camera, collisionBoxes);
-//        for (Rectangle entrance : gameScreen.getGameMap().getMapGenerator().getSubroomEntrance()) {
-//            if (player.collisionBox.getBounds().overlaps(entrance)) {
-//                float exitX = player.x;
-//                float exitY = player.y;
-//                game.setScreen(new SublevelScreen("subrooms/subroom_2.tmx", this, () -> {
-//                    game.setScreen(gameScreen);
-//                    player.x = exitX;
-//                    player.y = exitY;
-//                }));
-//                System.out.println("Subroom activated at " + entrance.getX() + ", " + entrance.getY());
-//            }
-//        }
         endPoint.update(delta);
 
         List<BaseEnemy> deadNPCs = new ArrayList<>();
@@ -122,22 +115,40 @@ public class EntityManager {
             chest.update(delta, camera, collisionBoxes);
             chest.checkForOpen(camera);
         });
+
+        campfires.forEach(campfire -> campfire.update(delta, camera, collisionBoxes));
+    }
+
+    public void updateOnlyChests(float delta, OrthographicCamera camera, Set<Line> collisionBoxes) {
+        chests.forEach(chest -> {
+            chest.update(delta, camera, collisionBoxes);
+            chest.checkForOpen(camera);
+        });
+        player.update(delta, camera, collisionBoxes);
     }
 
     public void render(SpriteBatch batch) {
-        player.draw(batch);
+
         endPoint.draw(batch);
         NPCs.forEach(npc -> npc.draw(batch));
         chests.forEach(chest -> chest.draw(batch));
+        campfires.forEach(campfire -> campfire.draw(batch));
+        player.draw(batch);
+
     }
 
     public void renderHitboxes(ShapeRenderer shape) {
         Rectangle playerBox = player.collisionBox.getBounds();
         shape.rect(playerBox.x, playerBox.y, playerBox.width, playerBox.height);
 
+        for(Rectangle rect : player.collisionBox) {
+            shape.rect(rect.x, rect.y, rect.width, rect.height);
+        }
+
         NPCs.forEach(npc -> {
-            shape.rect(npc.getHitbox().x, npc.getHitbox().y,
-                npc.getHitbox().width, npc.getHitbox().height);
+            for(Rectangle rect : npc.getHitbox()) {
+                shape.rect(rect.x, rect.y, rect.width, rect.height);
+            }
             npc.drawPath(shape);
         });
     }
@@ -149,21 +160,32 @@ public class EntityManager {
         }
 
         ArrayList<Gaussian> slugGaussians = SlugEnemy.getGaussians();
-        int spawnRate = CalculateGaussians.calculateMultiGaussian(slugGaussians, roundsPassed);
-        int maxNPCs = Math.min(spawnRate, spawnableAreas.size());
+        ArrayList<Gaussian> waspGaussians = WaspEnemy.getGaussians();
 
         Collections.shuffle(spawnableAreas);
-        for (int i = 0; i < maxNPCs; i++) {
+        for (int i = 0; i < Math.min(CalculateGaussians.calculateMultiGaussian(slugGaussians, roundsPassed), spawnableAreas.size()); i++) {
             NPCs.add(new SlugEnemy(spawnableAreas.get(i), player, gameScreen));
+        }
+
+        Collections.shuffle(spawnableAreas);
+        for (int i = 0; i < Math.min(CalculateGaussians.calculateMultiGaussian(waspGaussians, roundsPassed), spawnableAreas.size()); i++) {
+            NPCs.add(new WaspEnemy(spawnableAreas.get(i), player, gameScreen));
+        }
+
+        Collections.shuffle(spawnableAreas);
+        for (int j = 0; j < 5; j++) {
+            CampFireEntity campFire = new CampFireEntity(gameScreen, gameScreen.getGameMap().getRayHandler());
+            campFire.setPosition(spawnableAreas.get(j));
+            campfires.add(campFire);
         }
     }
 
     private void spawnChestForNPC(BaseEnemy npc) {
-        if (Math.random() > 0.7) {
+        if (Math.random() > 0.0) {
             float x = npc.getX();
             float y = npc.getY();
 
-            ChestEntity chest = new ChestEntity(10, 20, 0, 0, gameScreen);
+            ChestEntity chest = new ChestEntity(gameScreen);
             Rectangle playerBounds = player.collisionBox.getBounds();
             Rectangle chestBox = new Rectangle(x, y, 0.5f, 0.5f);
 
@@ -181,11 +203,13 @@ public class EntityManager {
     public void dispose() {
         NPCs.clear();
         chests.clear();
+        campfires.clear();
     }
 
     public void reset() {
         NPCs.clear();
         chests.clear();
+        campfires.clear();
     }
 
     public PlayableCharacter getPlayer() { return player; }
@@ -196,5 +220,9 @@ public class EntityManager {
 
     public List<ChestEntity> getChests() {
         return chests;
+    }
+
+    public InputHandler getInputHandler() {
+        return inputHandler;
     }
 }

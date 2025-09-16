@@ -65,7 +65,6 @@ public class FileHandler {
     public static SaveSlot loadSave(int slotNumber) {
         FileHandle file = Gdx.files.local("saves/slot_" + slotNumber + ".json");
         if (!file.exists()) {
-            // Return empty slot
             SaveSlot emptySlot = new SaveSlot();
             emptySlot.slotNumber = slotNumber;
             emptySlot.isEmpty = true;
@@ -78,7 +77,7 @@ public class FileHandler {
 
     public static SaveSlot loadTempSave(int slotNumber) {
         if (slotNumber < 0 || slotNumber >= tempSlots.size()) return null;
-        return tempSlots.get(slotNumber); // may be null if never saved
+        return tempSlots.get(slotNumber);
     }
 
     public static List<SaveSlot> getAllSaveSlots() {
@@ -112,7 +111,6 @@ public class FileHandler {
 
         saveSlot.saveData = saveData;
 
-        // store in memory or write to disk as needed
         tempSlots.set(slotNumber, saveSlot);
     }
 

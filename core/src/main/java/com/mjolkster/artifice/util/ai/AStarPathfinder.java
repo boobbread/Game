@@ -1,7 +1,7 @@
 package com.mjolkster.artifice.util.ai;
 
 import com.badlogic.gdx.math.Vector2;
-import com.mjolkster.artifice.core.world.MapGenerator;
+import com.mjolkster.artifice.core.world.generation.MapGenerator;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
 
 import java.util.*;
@@ -59,11 +59,11 @@ public class AStarPathfinder {
                 }
             }
         }
-        return new LinkedList<>(); // Empty path if none found
+        return new LinkedList<>();
     }
 
     private List<Node> getValidNeighbours(Node node, Integer[][] grid, int width, int height, Vector2 goal) {
-        List<Node> neighbors = new ArrayList<>(8); // Pre-allocate for 8 neighbors
+        List<Node> neighbors = new ArrayList<>(8);
         final int x = node.getX();
         final int y = node.getY();
 

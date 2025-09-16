@@ -29,6 +29,7 @@
       up: transparent
       down: transparent
       over: transparent
+      checked: GUIslotDebug
     }
     slot-debug: {
       imageUp: GUIslotDebug
@@ -71,6 +72,38 @@
       down: card
       over: card
       checked: card
+    }
+    COMMON: {
+      font: def
+      fontColor: White
+      up: common
+      down: common
+      over: common
+      checked: common_checked
+    }
+    UNCOMMON: {
+      font: def
+      fontColor: White
+      up: uncommon
+      down: uncommon
+      over: uncommon
+      checked: uncommon_checked
+    }
+    RARE: {
+      font: def
+      fontColor: White
+      up: rare
+      down: rare
+      over: rare
+      checked: rare_checked
+    }
+    ANOMALOUS: {
+      font: def
+      fontColor: White
+      up: anomalous
+      down: anomalous
+      over: anomalous
+      checked: anomalous_checked
     }
   }
   com.badlogic.gdx.scenes.scene2d.ui.Label$LabelStyle: {
