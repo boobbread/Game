@@ -6,6 +6,10 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.generation.MapGenerator MapGenerator}
+ * Generates a {@link com.badlogic.gdx.maps.tiled.TiledMapTileLayer TiledMapTileLayer} of randomised moss textures to add to the game map
+ */
 public class MossGenerator {
 
     private final StaticTiledMapTile[] mossTiles;

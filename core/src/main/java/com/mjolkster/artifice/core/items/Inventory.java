@@ -5,6 +5,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.entities.PlayableCharacter PlayableCharacter}
+ * Wrapper for a List of Items, with utility methods for getting, adding and removing items.
+ */
 public class Inventory {
 
     private final int size;

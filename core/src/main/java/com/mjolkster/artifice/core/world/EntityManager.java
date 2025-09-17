@@ -30,7 +30,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static com.mjolkster.artifice.graphics.screen.GameScreen.game;
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.GameMap GameMap}
+ * Manages the spawning, updating and rendering of entities
+ */
 
 public class EntityManager {
     private PlayableCharacter player;
@@ -42,7 +45,7 @@ public class EntityManager {
     private final EndPoint endPoint;
     private final InputHandler inputHandler;
 
-    public EntityManager(GameMap map, int slotNumber, GameScreen gameScreen) {
+    public EntityManager(GameMap map, int slotNumber, GameScreen gameScreen, boolean bossLevel) {
 
         this.gameScreen = gameScreen;
 
@@ -84,7 +87,10 @@ public class EntityManager {
         player.setContext(PlayableCharacter.Context.DUNGEON);
 
         List<Vector2> spawnableAreas = map.getSpawnableAreas();
-        spawnNPCs(spawnableAreas, player.roundsPassed);
+
+        if (!bossLevel) {
+            spawnNPCs(spawnableAreas, player.roundsPassed);
+        }
 
         turnManager = new TurnManager(player, NPCs);
 

@@ -46,7 +46,6 @@ public class SublevelScreen implements Screen {
 
     public SublevelScreen(String tmxPath, EntityManager entityManager, Runnable onExitCallback) {
         this.entityManager = entityManager;
-        this.onExitCallback = onExitCallback;
 
         this.camera = new OrthographicCamera();
         this.viewport = new AspectRatioViewport(6f, camera);
@@ -69,7 +68,6 @@ public class SublevelScreen implements Screen {
         // Load collision from TMX
         this.collisionBoxes = MapGenerator.loadCollisionLinesFromMap(map);
         List<List<Vector2>> outlines = LineHandler.orderOutline(collisionBoxes);
-        this.collisionBodies = createBodiesFromPolygons(world, outlines);
 
         // TODO: place player at sublevel spawnpoint (parse from object layer)
         entityManager.getPlayer().x = 5;

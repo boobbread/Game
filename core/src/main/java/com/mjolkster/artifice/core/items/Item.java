@@ -7,6 +7,10 @@ import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.util.data.ItemLocalization;
 import com.mjolkster.artifice.util.data.Pair;
 
+/**
+ * The base class for items within the game, providing basic methods and such
+ */
+
 public abstract class Item {
 
     private static final TextureAtlas atlas = new TextureAtlas(Gdx.files.internal("items.atlas"));

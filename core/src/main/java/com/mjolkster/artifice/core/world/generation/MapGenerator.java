@@ -20,6 +20,9 @@ import java.util.*;
 import java.util.List;
 import java.util.Queue;
 
+/**
+ * Generates a tile map using marching squares
+ */
 public class MapGenerator {
 
     private final long seed;
@@ -94,7 +97,7 @@ public class MapGenerator {
         MossGenerator mossGenerator = new MossGenerator(tileWidth, tileHeight, width, height, seed);
         mossGenerator.drawMossLayer(AStarGrid, mossLayer);
 
-        PipeGenerator pipeGenerator = new PipeGenerator(validPipeStarts, collisionVertexes, pipeLayer, tileWidth, tileHeight, gridVertices);
+        PipeGenerator pipeGenerator = new PipeGenerator(validPipeStarts, pipeLayer, gridVertices);
         pipeGenerator.constructPipe();
         pipeGenerator.constructPipe();
 

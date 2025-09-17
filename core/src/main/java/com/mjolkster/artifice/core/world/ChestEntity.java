@@ -28,6 +28,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * A game map local entity that represents a way to give loot to the player
+ */
+
 public class ChestEntity extends Entity {
 
     public Boolean itemPicked;

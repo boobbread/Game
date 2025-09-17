@@ -2,6 +2,9 @@ package com.mjolkster.artifice.core.items;
 
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 
+/**
+ * An item which is non-consumable and not lost on death
+ */
 public class PermanentItem extends Item {
 
     public PermanentItem(String name, Rarity rarity, Bonus bonus, int bonusAmount) {

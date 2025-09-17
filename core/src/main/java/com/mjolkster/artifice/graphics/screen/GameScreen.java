@@ -56,12 +56,15 @@ public class GameScreen implements Screen {
     private boolean paused = false;
     private boolean showHitBox = false;
     private boolean showLighting = true;
+    private final boolean bossLevel;
 
     private boolean restartRequested = false;
+    private boolean restartRequestedWithBoss = false;
 
-    public GameScreen(GameClass game, int slotNumber) {
+    public GameScreen(GameClass game, int slotNumber, boolean bossLevel) {
         GameScreen.game = game;
         playerSlotNumber = slotNumber;
+        this.bossLevel = bossLevel;
 
         // Camera and viewport
         camera = new OrthographicCamera();
@@ -69,9 +72,7 @@ public class GameScreen implements Screen {
 
         // Map
         seed = (long) (Math.random() * 4000000);
-        gameMap = new GameMap(seed);
-
-
+        gameMap = new GameMap(seed, bossLevel);
 
         // Rendering
         spriteBatch = new SpriteBatch();
@@ -88,7 +89,7 @@ public class GameScreen implements Screen {
         stage = new Stage(uiViewport, spriteBatch);
 
         // Entities
-        entityManager = new EntityManager(gameMap, slotNumber, this);
+        entityManager = new EntityManager(gameMap, slotNumber, this, bossLevel);
         hud = new PlayerHUD(entityManager.getPlayer(), this);
 
         DamageIndicatorManager.init(stage, new BitmapFont(Gdx.files.internal("GUI/default.fnt")), 2f);
@@ -103,7 +104,16 @@ public class GameScreen implements Screen {
         if (restartRequested) {
             restartRequested = false;
             FileHandler.saveTemp(playerSlotNumber, entityManager.getPlayer());
-            GameScreen newScreen = new GameScreen(game, playerSlotNumber);
+            GameScreen newScreen = new GameScreen(game, playerSlotNumber, false);
+            game.setScreen(newScreen);
+            dispose();
+            return;
+        }
+
+        if (restartRequestedWithBoss) {
+            restartRequestedWithBoss = false;
+            FileHandler.saveTemp(playerSlotNumber, entityManager.getPlayer());
+            GameScreen newScreen = new GameScreen(game, playerSlotNumber, true);
             game.setScreen(newScreen);
             dispose();
             return;
@@ -217,6 +227,7 @@ public class GameScreen implements Screen {
     }
 
     public void requestRestart() { restartRequested = true; }
+    public void requestRestartWithBoss() { restartRequestedWithBoss = true; }
     public void requestClose() { closeRequested = true; }
 
     public PlayerHUD getHud() { return hud; }

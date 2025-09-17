@@ -1,5 +1,10 @@
 package com.mjolkster.artifice.core.entities;
 
+/**
+ * Provides information about the player, such as max health and move speed
+ */
+// TODO : implement the other archetypes and a way to chose which one you take
+    // TODO : add attack sets to each archetype
 public enum Archetype {
 
     FIGHTER(10f, 2, 14, 30, "fighter"),

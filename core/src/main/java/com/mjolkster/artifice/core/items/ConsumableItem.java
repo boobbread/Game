@@ -2,6 +2,9 @@ package com.mjolkster.artifice.core.items;
 
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
 
+/**
+ * An item which is consumable and lost on death
+ */
 public class ConsumableItem extends Item {
 
     int effectTime;

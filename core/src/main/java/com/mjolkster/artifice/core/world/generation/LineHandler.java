@@ -5,6 +5,11 @@ import com.mjolkster.artifice.util.geometry.Line;
 
 import java.util.*;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.generation.MapGenerator MapGenerator}
+ * Provides methods for creating a simplified set of lines for collision detection
+ */
+
 public class LineHandler {
     public static boolean isCollinear(Vector2 a, Vector2 b, Vector2 c, double e) {
         double cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);

@@ -9,21 +9,19 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.generation.MapGenerator MapGenerator}
+ * Generates a {@link com.badlogic.gdx.maps.tiled.TiledMapTileLayer TiledMapTileLayer} of connected pipes
+ */
 public class PipeGenerator {
 
     private final List<Point> validPipeStarts;
-    private final Set<Line> collisionVertexes;
     private final TiledMapTileLayer pipeLayer;
-    private final int tileWidth;
-    private final int tileHeight;
     public final HashMap<Point, Integer> gridVertices;
 
-    public PipeGenerator(List<Point> pipeStarts, Set<Line> collisionVertexes, TiledMapTileLayer pipeLayer, int tileWidth, int tileHeight, HashMap<Point, Integer> gridVertices) {
+    public PipeGenerator(List<Point> pipeStarts, TiledMapTileLayer pipeLayer, HashMap<Point, Integer> gridVertices) {
         this.validPipeStarts = pipeStarts;
-        this.collisionVertexes = collisionVertexes;
         this.pipeLayer = pipeLayer;
-        this.tileWidth = tileWidth;
-        this.tileHeight = tileHeight;
         this.gridVertices = gridVertices;
     }
 

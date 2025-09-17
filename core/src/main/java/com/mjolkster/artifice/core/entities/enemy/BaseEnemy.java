@@ -14,7 +14,9 @@ import com.mjolkster.artifice.util.geometry.Hitbox;
 import com.mjolkster.artifice.util.graphics.Sprite;
 import com.mjolkster.artifice.util.ai.AStarPathfinder;
 import com.mjolkster.artifice.util.geometry.Line;
+import com.mjolkster.artifice.util.math.Gaussian;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
@@ -37,12 +39,18 @@ public abstract class BaseEnemy extends Entity {
     protected NPCState state = NPCState.ALIVE;
     protected float deathTimer = 0f;
     protected boolean hasSpawnedChest = false;
-    protected boolean attemptedChestSpawn = false;
 
     /**
      * Constructor for generic enemy.
      * Subclasses define stats and sprite.
+     * @param spawnPoint The spawn location, in world-pixel coordinates
+     * @param target The target of the pathfinding algorithm e.g. the player
+     * @param sprite The {@link com.mjolkster.artifice.util.graphics.Sprite Sprite} for the enemy
+     * @param health The health of the enemy
+     * @param moveDistance The maximum distance the enemy can move in a turn
+     * @param gameScreen The {@link com.mjolkster.artifice.graphics.screen.GameScreen GameScreen} on which to spawn the enemy
      */
+
     public BaseEnemy(Vector2 spawnPoint, PlayableCharacter target, Sprite sprite, int health, float moveDistance, GameScreen gameScreen) {
         super(health, 0, moveDistance, 0, sprite, gameScreen);
         this.target = target;
@@ -101,9 +109,6 @@ public abstract class BaseEnemy extends Entity {
      */
     protected abstract void damagePlayer(PlayableCharacter target);
 
-    /**
-     * Pathfinding recalculation
-     */
     public void recalculatePath() {
         Vector2 start = new Vector2(x, y);
         Vector2 goal = new Vector2(
@@ -121,9 +126,6 @@ public abstract class BaseEnemy extends Entity {
         hasCompletedTurn = false;
     }
 
-    /**
-     * Follow the current A* path
-     */
     public void followPath(float delta) {
 
         if ((currentPath == null || currentPath.isEmpty() || distanceTravelled >= moveDistance)) {
@@ -150,9 +152,6 @@ public abstract class BaseEnemy extends Entity {
         hitbox.setOrigin(x, y);
     }
 
-    /**
-     * Movement helper
-     */
     protected boolean moveTowards(Vector2 targetPos, float delta, float moveSpeed) {
         Vector2 direction = targetPos.cpy().sub(x, y);
         if (direction.len() < 0.05f) {
@@ -193,9 +192,6 @@ public abstract class BaseEnemy extends Entity {
         }
     }
 
-    /**
-     * Blocking / collision with other NPCs
-     */
     protected void handleBlocking(float delta) {
         blockTimer += delta;
         if (blockTimer > 0.5f) {
@@ -221,9 +217,6 @@ public abstract class BaseEnemy extends Entity {
         }
     }
 
-    /**
-     * Check if tile is blocked by other NPCs or the player
-     */
     protected boolean isBlocked(Vector2 targetPos) {
         for (BaseEnemy other : gameScreen.getNPCs()) {
             if (other == this) continue;
@@ -236,7 +229,7 @@ public abstract class BaseEnemy extends Entity {
     }
 
     /**
-     * Draw A* path (debug)
+     * Debug feature for checking the pathing is correct
      */
     public void drawPath(ShapeRenderer shapeRenderer) {
         if (currentPath == null || currentPath.isEmpty()) return;

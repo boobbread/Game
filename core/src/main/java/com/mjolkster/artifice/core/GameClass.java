@@ -10,6 +10,10 @@ import com.badlogic.gdx.utils.viewport.ScalingViewport;
 import com.mjolkster.artifice.registry.registries.ItemRegistry;
 import com.mjolkster.artifice.graphics.screen.MainMenuScreen;
 
+/**
+ * Main class
+ */
+
 public class GameClass extends Game {
 
     public SpriteBatch batch;

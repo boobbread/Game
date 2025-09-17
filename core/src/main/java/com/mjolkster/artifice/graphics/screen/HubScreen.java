@@ -8,23 +8,31 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.math.Ellipse;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.mjolkster.artifice.core.GameClass;
 import com.mjolkster.artifice.core.entities.Archetype;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
+import com.mjolkster.artifice.core.world.generation.LineHandler;
 import com.mjolkster.artifice.graphics.viewports.AspectRatioViewport;
 import com.mjolkster.artifice.graphics.viewports.ExpandingViewport;
 import com.mjolkster.artifice.io.input.ControllerInputHandler;
 import com.mjolkster.artifice.io.input.HybridInputHandler;
 import com.mjolkster.artifice.io.input.InputHandler;
+import com.mjolkster.artifice.util.geometry.Line;
+
+import java.util.*;
 
 public class HubScreen implements Screen {
 
@@ -41,11 +49,16 @@ public class HubScreen implements Screen {
 
     // Map
     private final Texture hubBackground;
+    private final Set<Line> rawHubCollisions = new HashSet<>();
+    private final Set<Line> hubCollisions = new HashSet<>();
+    private final Ellipse holeHitbox;
 
     // Lighting / physics (kept simple, optional)
     private final World world;
     private final RayHandler rayHandler;
     private final PointLight playerLight;
+    private final Box2DDebugRenderer debugRenderer;
+    private final ShapeRenderer shape;
 
     // Player
     private PlayableCharacter player;
@@ -64,9 +77,14 @@ public class HubScreen implements Screen {
 
         // Load hub background PNG (e.g. assets/maps/hub.png)
         hubBackground = new Texture(Gdx.files.internal("HubMap.png"));
+        loadCollisionMask("HubCollisions.png");
+        holeHitbox = new Ellipse(22 + 25/32f, 11 + 6/32f, 206/32f, 124/32f);
 
         // World + lighting
+        debugRenderer = new Box2DDebugRenderer(true, false, false, false, false, false);
         world = new World(new Vector2(0, -9.8f), true);
+        List<List<Vector2>> outlines = LineHandler.orderOutline(hubCollisions);
+        createBodiesFromPolygons(world, outlines);
         rayHandler = new RayHandler(world);
         rayHandler.setAmbientLight(0.2f);
         rayHandler.setBlur(true);
@@ -83,7 +101,7 @@ public class HubScreen implements Screen {
         player = new PlayableCharacter(Archetype.FIGHTER, spawnPoint, null, inputHandler);
         player.setContext(PlayableCharacter.Context.HUB);
 
-
+        shape = new ShapeRenderer();
     }
 
     // Replace with real save/slot logic later
@@ -109,7 +127,7 @@ public class HubScreen implements Screen {
 
             ScreenUtils.clear(Color.BLACK);
 
-            player.update(delta, camera, null);
+            player.update(delta, camera, hubCollisions);
             playerLight.setPosition(player.x + 0.5f, player.y + 0.5f);
 
             // camera follows player
@@ -124,12 +142,23 @@ public class HubScreen implements Screen {
             player.draw(spriteBatch);
             spriteBatch.end();
 
+            shape.begin(ShapeRenderer.ShapeType.Line);
+            shape.setProjectionMatrix(camera.combined);
+            shape.ellipse(holeHitbox.x, holeHitbox.y, holeHitbox.width, holeHitbox.height);
+            shape.end();
+
+//            debugRenderer.render(world, camera.combined);
+
             // lighting (optional)
             rayHandler.setCombinedMatrix(camera);
             rayHandler.updateAndRender();
 
             stage.act(delta);
             stage.draw();
+
+            if (rectOverlapsEllipse(player.collisionBox.getBounds(), holeHitbox)) {
+                requestRestart();
+            }
         }
     }
 
@@ -164,16 +193,176 @@ public class HubScreen implements Screen {
     }
 
     private void handleInput(float delta) {
-        // Example: Enter dungeon
         if (Gdx.input.isKeyJustPressed(Input.Keys.G)) {
             requestRestart();
         }
+
         if (inputHandler.isController() && inputHandler instanceof HybridInputHandler) {
             ControllerInputHandler controller = ((HybridInputHandler) inputHandler).getControllerHandler();
             if (controller.isaPressed()) {
                 requestRestart();
             }
         }
+    }
+
+    private void loadCollisionMask(String maskPath) {
+        Pixmap mask = new Pixmap(Gdx.files.internal(maskPath));
+
+        int width = mask.getWidth();
+        int height = mask.getHeight();
+
+        Gdx.app.log("HubScreen", "Loading collision mask: " + maskPath);
+        Gdx.app.log("HubScreen", "Mask size: " + width + "x" + height);
+
+        int solidCount = 0;
+
+        // Step 1: collect horizontal runs for each row
+        List<List<int[]>> runsPerRow = new ArrayList<>();
+        for (int y = 0; y < height; y++) {
+            List<int[]> runs = new ArrayList<>();
+            int runStart = -1;
+
+            for (int x = 0; x < width; x++) {
+                int pixel = mask.getPixel(x, y);
+                Color c = new Color(pixel);
+
+                boolean solid = (c.r == 0 && c.g == 0 && c.b == 0);
+                if (solid) solidCount++;
+
+                if (solid && runStart == -1) {
+                    runStart = x;
+                } else if ((!solid || x == width - 1) && runStart != -1) {
+                    int runEnd = solid ? x : x - 1;
+                    runs.add(new int[]{runStart, runEnd});
+                    runStart = -1;
+                }
+            }
+
+            runsPerRow.add(runs);
+        }
+
+        mask.dispose();
+
+        Gdx.app.log("HubScreen", "Solid pixels found: " + solidCount);
+
+        // Step 2: vertical merge into rectangles
+        List<int[]> rectangles = new ArrayList<>(); // {x1, x2, yStart, yEnd}
+        Map<String, int[]> activeRuns = new HashMap<>();
+
+        for (int y = 0; y < height; y++) {
+            Map<String, int[]> newActiveRuns = new HashMap<>();
+
+            for (int[] run : runsPerRow.get(y)) {
+                String key = run[0] + ":" + run[1];
+
+                if (activeRuns.containsKey(key)) {
+                    // Extend existing rectangle
+                    int[] rect = activeRuns.get(key);
+                    rect[3] = y; // extend yEnd
+                    newActiveRuns.put(key, rect);
+                } else {
+                    // Start new rectangle
+                    int[] rect = new int[]{run[0], run[1], y, y};
+                    newActiveRuns.put(key, rect);
+                }
+            }
+
+            // Finalize runs that did not continue
+            for (int[] rect : activeRuns.values()) {
+                if (!newActiveRuns.containsValue(rect)) {
+                    rectangles.add(rect);
+                }
+            }
+
+            activeRuns = newActiveRuns;
+        }
+
+        // Flush remaining active rectangles
+        rectangles.addAll(activeRuns.values());
+
+        Gdx.app.log("HubScreen", "Merged rectangles: " + rectangles.size());
+
+        // Step 3: convert rectangles into Lines
+        for (int[] rect : rectangles) {
+            float x1 = (float) rect[0] / 32f;
+            float x2 = (float) (rect[1] + 1) / 32f;
+            float y1 = (float) (height - rect[2]) / 32f;
+            float y2 = (float) (height - rect[3] - 1) / 32f;
+
+            // Add 4 edges
+            rawHubCollisions.add(new Line(x1, y1, x2, y1)); // top
+            rawHubCollisions.add(new Line(x2, y1, x2, y2)); // right
+            rawHubCollisions.add(new Line(x2, y2, x1, y2)); // bottom
+            rawHubCollisions.add(new Line(x1, y2, x1, y1)); // left
+        }
+
+        Gdx.app.log("HubScreen", "Raw hub collision lines (rects expanded): " + rawHubCollisions.size());
+
+        // Step 4: outline + simplify if needed
+        List<List<Vector2>> outlines = LineHandler.orderOutline(rawHubCollisions);
+        List<List<Vector2>> simplifiedOutlines = new ArrayList<>();
+        for (List<Vector2> outline : outlines) {
+            simplifiedOutlines.add(LineHandler.unifySegments(outline, 0.01));
+        }
+        for (List<Vector2> outline : simplifiedOutlines) {
+            hubCollisions.addAll(LineHandler.reconstructLines(outline));
+        }
+
+        Gdx.app.log("HubScreen", "Outlines found: " + outlines.size());
+        Gdx.app.log("HubScreen", "Final hub collision lines: " + hubCollisions.size());
+    }
+
+    private boolean rectOverlapsEllipse(Rectangle rect, Ellipse ellipse) {
+        // Get rect center
+        float rectCenterX = rect.x + rect.width / 2f;
+        float rectCenterY = rect.y + rect.height / 2f;
+
+        // Translate relative to ellipse center
+        float dx = rectCenterX - (ellipse.x + ellipse.width / 2f);
+        float dy = rectCenterY - (ellipse.y + ellipse.height / 2f);
+
+        // Normalize by ellipse radii
+        float rx = ellipse.width / 2f;
+        float ry = ellipse.height / 2f;
+
+        float nx = dx / rx;
+        float ny = dy / ry;
+
+        return (nx * nx + ny * ny) <= 1f; // inside ellipse
+    }
+
+    public List<Body> createBodiesFromPolygons(World world, List<List<Vector2>> polygons) {
+        List<Body> bodies = new ArrayList<>();
+
+        for (List<Vector2> loop : polygons) {
+            BodyDef bodyDef = new BodyDef();
+            bodyDef.type = BodyDef.BodyType.StaticBody;
+            Body body = world.createBody(bodyDef);
+
+            for (int i = 0; i < loop.size(); i++) {
+                Vector2 current = loop.get(i);
+                Vector2 next = loop.get((i + 1) % loop.size());
+
+                if (current.epsilonEquals(next, 0.001f)) {
+                    continue;
+                }
+
+                EdgeShape edgeShape = new EdgeShape();
+                edgeShape.set(current, next);
+
+                FixtureDef fixtureDef = new FixtureDef();
+                fixtureDef.shape = edgeShape;
+                fixtureDef.density = 0f;
+                fixtureDef.friction = 0.5f;
+
+                body.createFixture(fixtureDef);
+                edgeShape.dispose();
+            }
+
+            bodies.add(body);
+        }
+
+        return bodies;
     }
 
     @Override
@@ -209,7 +398,7 @@ public class HubScreen implements Screen {
             this.player.sprite.dispose();
             this.player = null;
         }
-        game.setScreen(new GameScreen(game, saveSlot()));
+        game.setScreen(new GameScreen(game, saveSlot(), false));
         Gdx.app.postRunnable(this::dispose);
     }
 

@@ -15,6 +15,9 @@ import com.mjolkster.artifice.util.math.Gaussian;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A flying enemy that attacks by dropping down on the player
+ */
 public class WaspEnemy extends BaseEnemy {
 
     public enum WaspState {

@@ -6,6 +6,11 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.generation.MapGenerator MapGenerator}
+ * Processes islands to remove small/disconnected islands from the main path
+ */
+
 public class IslandManager {
 
     private final HashMap<Point, Integer> gridVertices;

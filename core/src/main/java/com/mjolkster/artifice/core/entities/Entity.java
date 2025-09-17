@@ -10,6 +10,9 @@ import com.mjolkster.artifice.util.geometry.Line;
 
 import java.util.Set;
 
+/**
+ * An abstract Entity that gives basic utility to {@link com.mjolkster.artifice.core.entities.PlayableCharacter Player} and {@link com.mjolkster.artifice.core.entities.enemy.BaseEnemy BaseEnemy}
+ */
 public abstract class Entity {
 
     public final GameScreen gameScreen;

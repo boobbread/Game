@@ -18,6 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * A director for all the elements of the dungeons, including map, lighting, entity management
+ */
+
 public class GameMap {
     private final TiledMap map;
     private final OrthogonalTiledMapRenderer renderer;
@@ -30,9 +34,14 @@ public class GameMap {
     private final MapGenerator mapGenerator;
     private final PointLight playerLight;
 
-    public GameMap(long seed) {
+    public GameMap(long seed, boolean boss) {
         this.mapGenerator = new MapGenerator(32, 32, seed);
-        this.map = mapGenerator.generate(64, 16, 6);
+
+        if (boss) {
+            this.map = mapGenerator.generate(32, 32, 6);
+        } else {
+            this.map = mapGenerator.generate(24, 24, 6);
+        }
 
         this.spawnpoint = mapGenerator.getSpawnPoint();
         this.endPointPosition = mapGenerator.getEndPoint();

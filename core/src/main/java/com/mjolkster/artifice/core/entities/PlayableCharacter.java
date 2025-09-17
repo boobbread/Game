@@ -98,6 +98,9 @@ public class PlayableCharacter extends Entity {
         FileHandler.CreateNewSave(this, 0, 0);
     }
 
+    /**
+     * Used for loading a new player from a JSON
+     */
     public PlayableCharacter(
         float health,
         List<Item> tempInv,
@@ -156,7 +159,7 @@ public class PlayableCharacter extends Entity {
             InputHandler inputHandler = gameScreen.getEntityManager().getInputHandler();
             if (inputHandler instanceof ControllerInputHandler) {
                 ((ControllerInputHandler) inputHandler).vibrate();
-            } else if (inputHandler instanceof HybridInputHandler) {
+            } else if (inputHandler instanceof HybridInputHandler && inputHandler.isController()) {
                 ((HybridInputHandler) inputHandler).getControllerHandler().vibrate();
             }
             Vector3 screenPos = getScreenPosition(gameScreen.getCamera());
@@ -258,7 +261,7 @@ public class PlayableCharacter extends Entity {
     public boolean hasCompletedMove() {
         if (distanceTraveledThisTurn >= moveDistance) {
             distanceTraveledThisTurn = 0f;
-            actionPoints = archetype.actionPoints;
+            actionPoints = this.maxActionPoints;
 
             return true;
         }
@@ -268,7 +271,7 @@ public class PlayableCharacter extends Entity {
     public void resetForNewTurn() {
         canMove = true;
         distanceTraveledThisTurn = 0f;
-        actionPoints = archetype.actionPoints;
+        actionPoints = this.maxActionPoints;
     }
 
     // Update Loop

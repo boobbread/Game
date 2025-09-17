@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.mjolkster.artifice.core.GameClass;
+import com.mjolkster.artifice.core.entities.PlayableCharacter;
 import com.mjolkster.artifice.io.FileHandler;
 import com.mjolkster.artifice.registry.registries.ItemRegistry;
 import com.mjolkster.artifice.graphics.screen.GameScreen;
@@ -102,13 +103,22 @@ public class EndPoint {
     public boolean interact() {
         if (playerCanInteract) {
 
-            if (gameScreen.getPlayer().invPerm.getContents().contains(ItemRegistry.nest_feather.get())) {
-                gameScreen.getPlayer().changeHealth(3);
+            PlayableCharacter player = gameScreen.getPlayer();
+
+            if (player.invPerm.getContents().contains(ItemRegistry.nest_feather.get())) {
+                player.changeHealth(3);
             }
 
-            gameScreen.getPlayer().roundsPassed += 1;
-            FileHandler.CreateNewSave(gameScreen.getPlayer(), gameScreen.getSeed(), GameScreen.playerSlotNumber);
-            gameScreen.requestRestart();
+            player.roundsPassed += 1;
+            FileHandler.CreateNewSave(player, gameScreen.getSeed(), GameScreen.playerSlotNumber);
+
+            if (player.roundsPassed > 0 && player.roundsPassed % 5 == 0) {
+                Gdx.app.log("EndPoint", "Requested restart with boss");
+                gameScreen.requestRestartWithBoss();
+            } else {
+                gameScreen.requestRestart();
+            }
+
 
             return true;
         }

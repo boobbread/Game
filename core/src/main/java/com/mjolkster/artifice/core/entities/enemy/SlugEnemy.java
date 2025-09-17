@@ -11,6 +11,9 @@ import com.mjolkster.artifice.util.math.Gaussian;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An enemy that damages the player when they walk through them
+ */
 public class SlugEnemy extends BaseEnemy {
 
     public SlugEnemy(Vector2 spawnPoint, PlayableCharacter target, GameScreen gameScreen) {

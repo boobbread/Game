@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.utils.Null;
 import com.mjolkster.artifice.core.entities.Entity;
 import com.mjolkster.artifice.core.entities.enemy.BaseEnemy;
 import com.mjolkster.artifice.core.entities.PlayableCharacter;
@@ -82,6 +83,7 @@ public class AttackAction implements Action {
 
     }
 
+    @Override
     public void update(float delta) {
         stateTime += delta;
 
@@ -122,7 +124,7 @@ public class AttackAction implements Action {
         }
     }
 
-
+    @Override
     public void draw(SpriteBatch batch, float x, float y) {
         TextureRegion currentFrame = animation.getKeyFrame(stateTime);
 
@@ -166,8 +168,15 @@ public class AttackAction implements Action {
         return actionPointCost;
     }
 
+    /**
+     * Executes the attack, starting the animation and checking for hits
+     * @param effector The {@link com.mjolkster.artifice.core.entities.Entity Entity} performing the attack
+     * @param nullableTarget Not used, just inherited from Action interface.
+     * @param gameScreen The {@link com.mjolkster.artifice.graphics.screen.GameScreen GameScreen} in which the attack is taking place
+     * @return True if the attack was executed, false if not
+     */
     @Override
-    public boolean execute(PlayableCharacter effector, Entity target, GameScreen gameScreen) {
+    public boolean execute(PlayableCharacter effector, @Null Entity nullableTarget, GameScreen gameScreen) {
         if (effector.actionPoints < actionPointCost) return false; // not enough AP
 
         this.gameScreen = gameScreen;

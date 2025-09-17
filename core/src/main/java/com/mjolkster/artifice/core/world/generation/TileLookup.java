@@ -16,6 +16,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.generation.MapGenerator MapGenerator}
+ * Maps {@link com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile StaticMapTiles} and {@link com.badlogic.gdx.maps.tiled.tiles.AnimatedTiledMapTile AnimatedMapTiles} to integer states/directions for easy retrieval of resources
+ */
 public class TileLookup {
 
     private TextureAtlas atlas = new TextureAtlas(Gdx.files.internal("tiles.atlas"));

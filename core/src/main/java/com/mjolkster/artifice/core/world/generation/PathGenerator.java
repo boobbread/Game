@@ -8,6 +8,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * A helper class for {@link com.mjolkster.artifice.core.world.generation.MapGenerator MapGenerator}
+ * Carves a route through the map to ensure traversability
+ */
 public class PathGenerator {
 
     public static void createPath(Pair<Point, Point> points, int width, HashMap<Point, Integer> gridVertices) {
